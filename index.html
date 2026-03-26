@@ -304,6 +304,10 @@
         <label>Treningstype</label>
         <div class="type-filters" id="typeFilters"></div>
       </div>
+      <div class="filter-group" style="width:100%;">
+        <label>M&#xE5;ned</label>
+        <div class="type-filters" id="monthFilters"></div>
+      </div>
       <div class="filter-group" style="margin-left:auto;">
         <label>Velg spiller</label>
         <div class="autocomplete-wrap" id="autocompleteWrap">
@@ -351,6 +355,7 @@
 <script>
 var activeType = 'all';
 var excludedTrainings = {};
+var activeMonths = {}; // empty = all months shown
 var sortCol = 'attended';
 var sortDir = 1;
 var selectedPlayer = null;
@@ -432,6 +437,7 @@ function buildFilterMap(analysis, step2Names, step2Separate) {
 function activateDashboard(parsed, fileName) {
   DASHBOARD_DATA = parsed;
   activeType = 'all';
+  activeMonths = {};
   selectedPlayer = null;
   searchQuery = '';
   document.getElementById('searchInput').value = '';
@@ -443,6 +449,7 @@ function activateDashboard(parsed, fileName) {
   renderStats();
   buildTypeFilters();
   buildActiveFilterDetail();
+  buildMonthFilters();
   renderRanking();
 }
 
@@ -474,14 +481,18 @@ function getTypeGroup(training) {
 
 function computeStats(player, typeFilter) {
   if (typeFilter === 'all') {
+    var allSessions = player.sessions.filter(function(s) {
+      return sessionInActiveMonths(s);
+    });
+    var allAttended = allSessions.filter(function(s){ return s.attended; }).length;
     return {
-      attended: player.attended,
-      invited: player.invited,
-      pct: player.invited > 0 ? Math.round(player.attended / player.invited * 100) : 0
+      attended: allAttended,
+      invited: allSessions.length,
+      pct: allSessions.length > 0 ? Math.round(allAttended / allSessions.length * 100) : 0
     };
   }
   var sessions = player.sessions.filter(function(s) {
-    return getTypeGroup(s.training) === typeFilter && !excludedTrainings[s.training];
+    return getTypeGroup(s.training) === typeFilter && !excludedTrainings[s.training] && sessionInActiveMonths(s);
   });
 
   var invited = sessions.length;
@@ -583,6 +594,64 @@ function buildActiveFilterDetail() {
     lbl.appendChild(chk);
     lbl.appendChild(document.createTextNode(t));
     list.appendChild(lbl);
+  });
+}
+
+var MONTH_NAMES_NO = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+
+function getMonthLabel(ym) {
+  var parts = ym.split('-');
+  return MONTH_NAMES_NO[parseInt(parts[1]) - 1] + ' ' + parts[0];
+}
+
+function sessionInActiveMonths(s) {
+  if (Object.keys(activeMonths).length === 0) return true;
+  return !!(s.date && activeMonths[s.date.substring(0, 7)]);
+}
+
+function buildMonthFilters() {
+  var container = document.getElementById('monthFilters');
+  container.innerHTML = '';
+  if (!DASHBOARD_DATA) return;
+
+  var monthSet = {};
+  DASHBOARD_DATA.dates.forEach(function(d) { if (d) monthSet[d.substring(0, 7)] = true; });
+  var months = Object.keys(monthSet).sort();
+  if (months.length <= 1) { document.querySelector('[for="monthFilters"]'); return; }
+
+  var allSelected = Object.keys(activeMonths).length === 0;
+
+  // "Alle" chip
+  var allChip = document.createElement('div');
+  allChip.className = 'type-chip';
+  allChip.style.borderColor = '#2b6cb0';
+  allChip.style.color = allSelected ? 'white' : '#2b6cb0';
+  allChip.style.backgroundColor = allSelected ? '#2b6cb0' : 'white';
+  allChip.textContent = 'Alle';
+  allChip.addEventListener('click', function() {
+    activeMonths = {};
+    buildMonthFilters();
+    renderRanking();
+    if (selectedPlayer) showPlayerDetail(selectedPlayer);
+  });
+  container.appendChild(allChip);
+
+  months.forEach(function(ym) {
+    var isActive = !!activeMonths[ym];
+    var chip = document.createElement('div');
+    chip.className = 'type-chip';
+    chip.style.borderColor = '#2b6cb0';
+    chip.style.color = isActive ? 'white' : '#2b6cb0';
+    chip.style.backgroundColor = isActive ? '#2b6cb0' : 'white';
+    chip.textContent = getMonthLabel(ym);
+    chip.addEventListener('click', function() {
+      if (activeMonths[ym]) delete activeMonths[ym];
+      else activeMonths[ym] = true;
+      buildMonthFilters();
+      renderRanking();
+      if (selectedPlayer) showPlayerDetail(selectedPlayer);
+    });
+    container.appendChild(chip);
   });
 }
 
@@ -690,9 +759,9 @@ function showPlayerDetail(player) {
     '<span>Oppmøte: <b>' + stats.pct + '%</b></span>';
 
   var sessions = activeType === 'all'
-    ? player.sessions.filter(function(s) { return !excludedTrainings[s.training]; })
+    ? player.sessions.filter(function(s) { return !excludedTrainings[s.training] && sessionInActiveMonths(s); })
     : player.sessions.filter(function(s) {
-        return getTypeGroup(s.training) === activeType && !excludedTrainings[s.training];
+        return getTypeGroup(s.training) === activeType && !excludedTrainings[s.training] && sessionInActiveMonths(s);
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
