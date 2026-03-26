@@ -279,18 +279,33 @@ var sortDir = 1;
 var selectedPlayer = null;
 var searchQuery = '';
 
-var TYPE_COLORS = {
-  'J2015 Innetrening': '#6b46c1',
-  'J2015 FFO fredag': '#2f855a',
-  'J2015 FFO torsdag': '#c05621',
-  'J2015 FFO onsdag': '#2c7a7b',
-  'annet': '#718096'
-};
-var ALL_TYPES = ['all','J2015 Innetrening','J2015 FFO fredag','J2015 FFO torsdag','J2015 FFO onsdag','annet'];
-var TYPE_LABELS = {'all':'Alle','J2015 Innetrening':'Innetrening','J2015 FFO fredag':'FFO fredag','J2015 FFO torsdag':'FFO torsdag','J2015 FFO onsdag':'FFO onsdag','annet':'Andre'};
+var COLOR_PALETTE = [
+  '#6b46c1','#2f855a','#c05621','#2c7a7b','#b7791f',
+  '#2b6cb0','#9b2c2c','#276749','#553c9a','#2d3748'
+];
+
+var DYNAMIC_TYPES = [];     // list of unique training names from data
+var DYNAMIC_COLOR_MAP = {}; // training name -> colour
+
+function buildDynamicTypes() {
+  var seen = {};
+  var types = [];
+  DASHBOARD_DATA.trainings.forEach(function(t) {
+    if (t && !seen[t]) { seen[t] = true; types.push(t); }
+  });
+  DYNAMIC_TYPES = types;
+  DYNAMIC_COLOR_MAP = {};
+  types.forEach(function(t, i) {
+    DYNAMIC_COLOR_MAP[t] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+  });
+}
+
+function getTypeColor(type) {
+  return DYNAMIC_COLOR_MAP[type] || '#718096';
+}
 
 function getTypeGroup(training) {
-  return TYPE_COLORS[training] ? training : 'annet';
+  return training;
 }
 
 function computeStats(player, typeFilter) {
@@ -302,8 +317,7 @@ function computeStats(player, typeFilter) {
     };
   }
   var sessions = player.sessions.filter(function(s) {
-    var grp = getTypeGroup(s.training);
-    return typeFilter === 'annet' ? grp === 'annet' : s.training === typeFilter;
+    return s.training === typeFilter;
   });
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
@@ -326,17 +340,20 @@ function renderStats() {
 }
 
 function buildTypeFilters() {
+  buildDynamicTypes();
   var container = document.getElementById('typeFilters');
   container.innerHTML = '';
-  ALL_TYPES.forEach(function(type) {
+
+  var allTypes = ['all'].concat(DYNAMIC_TYPES);
+  allTypes.forEach(function(type) {
     var chip = document.createElement('div');
     chip.className = 'type-chip';
-    var color = type === 'all' ? '#2b6cb0' : (TYPE_COLORS[type] || TYPE_COLORS['annet']);
+    var color = type === 'all' ? '#2b6cb0' : getTypeColor(type);
     var isActive = activeType === type;
     chip.style.borderColor = color;
     chip.style.color = isActive ? 'white' : color;
     chip.style.backgroundColor = isActive ? color : 'white';
-    chip.textContent = TYPE_LABELS[type] || type;
+    chip.textContent = type === 'all' ? 'Alle' : type;
     chip.addEventListener('click', function() {
       activeType = type;
       buildTypeFilters();
@@ -452,8 +469,7 @@ function showPlayerDetail(player) {
   var sessions = activeType === 'all'
     ? player.sessions.slice()
     : player.sessions.filter(function(s) {
-        var grp = getTypeGroup(s.training);
-        return activeType === 'annet' ? grp === 'annet' : s.training === activeType;
+        return s.training === activeType;
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
