@@ -287,17 +287,33 @@ var COLOR_PALETTE = [
 var DYNAMIC_TYPES = [];     // list of unique training names from data
 var DYNAMIC_COLOR_MAP = {}; // training name -> colour
 
+// Strip trailing round/number suffixes to get a base group name
+// e.g. "Futsal runde 1" -> "Futsal", "Innetrening 2" -> "Innetrening"
+function getBaseType(training) {
+  return training
+    .replace(/\s+(runde|del|uke|sesjon|økt|gruppe|trinn|cup|turnering)\s*\d+\s*$/i, '')
+    .replace(/\s+\d+\s*$/, '')
+    .replace(/\s+[IVX]{1,4}\s*$/i, '')
+    .trim();
+}
+
 function buildDynamicTypes() {
-  var seen = {};
-  var types = [];
+  // Build map: baseType -> [original training names]
+  var groupMap = {};
   DASHBOARD_DATA.trainings.forEach(function(t) {
-    if (t && !seen[t]) { seen[t] = true; types.push(t); }
+    if (!t) return;
+    var base = getBaseType(t);
+    if (!groupMap[base]) groupMap[base] = [];
+    if (groupMap[base].indexOf(t) === -1) groupMap[base].push(t);
   });
-  DYNAMIC_TYPES = types;
+
+  DYNAMIC_TYPES = Object.keys(groupMap);
   DYNAMIC_COLOR_MAP = {};
-  types.forEach(function(t, i) {
-    DYNAMIC_COLOR_MAP[t] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+  DYNAMIC_TYPES.forEach(function(base, i) {
+    DYNAMIC_COLOR_MAP[base] = COLOR_PALETTE[i % COLOR_PALETTE.length];
   });
+  // Store groupMap globally for filtering
+  window.TYPE_GROUP_MAP = groupMap;
 }
 
 function getTypeColor(type) {
@@ -305,7 +321,7 @@ function getTypeColor(type) {
 }
 
 function getTypeGroup(training) {
-  return training;
+  return getBaseType(training);
 }
 
 function computeStats(player, typeFilter) {
@@ -317,7 +333,7 @@ function computeStats(player, typeFilter) {
     };
   }
   var sessions = player.sessions.filter(function(s) {
-    return s.training === typeFilter;
+    return getBaseType(s.training) === typeFilter;
   });
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
@@ -469,7 +485,7 @@ function showPlayerDetail(player) {
   var sessions = activeType === 'all'
     ? player.sessions.slice()
     : player.sessions.filter(function(s) {
-        return s.training === activeType;
+        return getBaseType(s.training) === activeType;
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
