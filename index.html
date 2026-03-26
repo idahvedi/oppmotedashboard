@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<title>J2015 Oppm&#xF8;tehistorikk Vinter 25-26</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+    color: white; padding: 24px 32px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .header-icon { font-size: 2.5rem; }
+  .header-text { flex: 1; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; }
+  .header p { font-size: 0.9rem; opacity: 0.8; margin-top: 4px; }
+
+  .upload-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.4);
+    color: white; padding: 9px 16px; border-radius: 8px;
+    cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    transition: background 0.2s; white-space: nowrap;
+  }
+  .upload-btn:hover { background: rgba(255,255,255,0.25); }
+  .upload-btn input[type=file] { display: none; }
+
+  .upload-status {
+    font-size: 0.8rem; opacity: 0.85; margin-top: 4px;
+    min-height: 1.2em;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: white; border-radius: 12px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;
+  }
+  .stat-value { font-size: 2rem; font-weight: 700; color: #2b6cb0; }
+  .stat-label { font-size: 0.8rem; color: #718096; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .card {
+    background: white; border-radius: 12px; padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px;
+  }
+  .card-title {
+    font-size: 1rem; font-weight: 600; color: #2d3748;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+
+  .filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 16px; }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group label { font-size: 0.78rem; font-weight: 600; color: #4a5568; text-transform: uppercase; letter-spacing: 0.05em; }
+  .filter-group input {
+    padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; color: #2d3748; background: white; min-width: 220px;
+  }
+  .filter-group input:focus { outline: none; border-color: #2b6cb0; box-shadow: 0 0 0 3px rgba(43,108,176,0.15); }
+
+  .ranking-table { width: 100%; border-collapse: collapse; }
+  .ranking-table th {
+    text-align: left; padding: 10px 12px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #718096; border-bottom: 2px solid #e2e8f0;
+    cursor: pointer; user-select: none;
+  }
+  .ranking-table th:hover { color: #2b6cb0; }
+  .ranking-table th:first-child { cursor: default; }
+  .ranking-table td { padding: 12px; border-bottom: 1px solid #f7fafc; font-size: 0.9rem; }
+  .ranking-table tr.data-row:hover td { background: #f7fafc; cursor: pointer; }
+  .ranking-table tr.highlighted td { background: #ebf4ff; }
+
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-weight: 700; font-size: 0.85rem;
+  }
+  .rank-1 { background: #ffd700; color: #744210; }
+  .rank-2 { background: #c0c0c0; color: #2d3748; }
+  .rank-3 { background: #cd7f32; color: white; }
+  .rank-other { background: #e2e8f0; color: #4a5568; }
+
+  .player-name { font-weight: 600; }
+  .player-name.selected { color: #2b6cb0; }
+
+  .progress-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 160px; }
+  .progress-bar-bg { flex: 1; background: #e2e8f0; border-radius: 9999px; height: 8px; }
+  .progress-bar-fill { height: 8px; border-radius: 9999px; transition: width 0.4s ease; }
+  .bar-high { background: linear-gradient(90deg, #276749, #48bb78); }
+  .bar-mid  { background: linear-gradient(90deg, #c05621, #ed8936); }
+  .bar-low  { background: linear-gradient(90deg, #9b2c2c, #fc8181); }
+  .pct-text { font-size: 0.85rem; color: #4a5568; min-width: 38px; text-align: right; }
+  .attended-count { font-weight: 700; color: #2d3748; font-size: 1rem; }
+  .invited-count { color: #a0aec0; font-size: 0.85rem; }
+
+  .player-detail { display: none; }
+  .player-detail.visible { display: block; }
+  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .detail-avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #2b6cb0, #63b3ed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: white; font-weight: 700; flex-shrink: 0;
+  }
+  .detail-name { font-size: 1.3rem; font-weight: 700; }
+  .detail-meta { display: flex; gap: 20px; margin-top: 6px; font-size: 0.85rem; color: #718096; }
+  .detail-meta b { color: #2d3748; }
+
+  .calendar-wrap { display: flex; flex-direction: column; gap: 20px; }
+  .cal-month { display: flex; flex-direction: column; gap: 8px; }
+  .cal-month-title {
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #4a5568;
+    padding-bottom: 6px; border-bottom: 2px solid #e2e8f0;
+  }
+  .cal-sessions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .session-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: 0.82rem; border: 1px solid; min-width: 190px;
+  }
+  .session-chip.present { background: #f0fff4; border-color: #9ae6b4; color: #276749; }
+  .session-chip.absent  { background: #fff5f5; border-color: #fed7d7; color: #9b2c2c; }
+  .session-icon { font-size: 1rem; flex-shrink: 0; }
+  .session-info { display: flex; flex-direction: column; }
+  .session-date { font-weight: 600; }
+  .session-type { opacity: 0.75; font-size: 0.72rem; margin-top: 1px; }
+
+  .type-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .type-chip {
+    padding: 5px 12px; border-radius: 9999px; font-size: 0.8rem;
+    font-weight: 500; cursor: pointer; border: 1.5px solid; transition: all 0.15s;
+  }
+
+  .autocomplete-wrap { position: relative; min-width: 220px; }
+  .autocomplete-wrap input {
+    width: 100%; padding: 8px 32px 8px 12px; border: 1px solid #e2e8f0;
+    border-radius: 8px; font-size: 0.9rem; color: #2d3748; background: white;
+  }
+  .autocomplete-wrap input:focus { outline: none; border-color: #2b6cb0; box-shadow: 0 0 0 3px rgba(43,108,176,0.15); }
+  .autocomplete-wrap::after {
+    content: '\25BC'; position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%); font-size: 0.65rem; color: #a0aec0; pointer-events: none;
+  }
+  .autocomplete-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 100;
+    max-height: 260px; overflow-y: auto;
+  }
+  .autocomplete-dropdown.open { display: block; }
+  .autocomplete-item {
+    padding: 9px 14px; cursor: pointer; font-size: 0.9rem; color: #2d3748;
+    border-bottom: 1px solid #f7fafc;
+  }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover, .autocomplete-item.active { background: #ebf4ff; color: #2b6cb0; }
+  .autocomplete-item mark { background: none; color: #2b6cb0; font-weight: 700; }
+  .autocomplete-no-results { padding: 10px 14px; font-size: 0.85rem; color: #a0aec0; }
+
+  @media (max-width: 640px) {
+    .header { padding: 14px 16px; gap: 10px; }
+    .header-icon { font-size: 1.8rem; }
+    .header h1 { font-size: 1.1rem; }
+    .header p { font-size: 0.8rem; }
+
+    .container { padding: 12px; }
+
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 10px; }
+    .stat-value { font-size: 1.5rem; }
+    .stat-label { font-size: 0.7rem; }
+
+    .card { padding: 16px; border-radius: 10px; margin-bottom: 16px; }
+
+    .filters { flex-direction: column; gap: 12px; }
+    .filter-group { width: 100%; }
+    .autocomplete-wrap { min-width: unset; width: 100%; }
+    .autocomplete-wrap input { min-width: unset; width: 100%; font-size: 1rem; padding: 10px 32px 10px 12px; }
+    .type-filters { gap: 6px; }
+    .type-chip { font-size: 0.75rem; padding: 5px 10px; }
+
+    .ranking-table th:nth-child(4), .ranking-table td:nth-child(4) { display: none; }
+    .ranking-table th:nth-child(5), .ranking-table td:nth-child(5) { display: none; }
+    .ranking-table th { padding: 8px; font-size: 0.7rem; }
+    .ranking-table td { padding: 10px 8px; }
+    .attended-count { font-size: 0.95rem; }
+    .rank-badge { width: 24px; height: 24px; font-size: 0.75rem; }
+
+    .detail-header { gap: 12px; }
+    .detail-avatar { width: 44px; height: 44px; font-size: 1.1rem; }
+    .detail-name { font-size: 1.1rem; }
+    .detail-meta { flex-direction: column; gap: 4px; }
+
+    .session-chip { min-width: unset; width: 100%; }
+    .cal-sessions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">&#x26BD;</div>
+  <div class="header-text">
+    <h1 id="headerTitle">Oppm&#xF8;tedashboard</h1>
+    <p id="headerSub">Last opp en Excel-fil for å se oppmøtehistorikk</p>
+  </div>
+  <div>
+    <label class="upload-btn">
+      &#x1F4C2; Last opp Excel-fil
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+    </label>
+    <div class="upload-status" id="uploadStatus"></div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="card">
+    <div class="card-title">&#x1F3C6; Rangering &#x2014; oppm&#xF8;te p&#xE5; treninger</div>
+    <div class="filters">
+      <div class="filter-group">
+        <label>Treningstype</label>
+        <div class="type-filters" id="typeFilters"></div>
+      </div>
+      <div class="filter-group" style="margin-left:auto;">
+        <label>Velg spiller</label>
+        <div class="autocomplete-wrap" id="autocompleteWrap">
+          <input type="text" id="searchInput" placeholder="S&#xF8;k navn..." autocomplete="off">
+          <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+        </div>
+      </div>
+    </div>
+    <table class="ranking-table">
+      <thead>
+        <tr>
+          <th style="width:44px;">#</th>
+          <th id="sortName">Spiller &#x2195;</th>
+          <th id="sortAttended" style="width:90px;">Deltatt &#x2193;</th>
+          <th id="sortInvited" style="width:90px;">Invitert &#x2195;</th>
+          <th style="min-width:200px;">Oppm&#xF8;te %</th>
+        </tr>
+      </thead>
+      <tbody id="rankingBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card player-detail" id="playerDetail">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>&#x1F464; Detaljer for spiller</span>
+      <button onclick="clearSelection()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#a0aec0;line-height:1;" title="Lukk">&times;</button>
+    </div>
+    <div class="detail-header">
+      <div class="detail-avatar" id="detailAvatar"></div>
+      <div>
+        <div class="detail-name" id="detailName"></div>
+        <div class="detail-meta" id="detailMeta"></div>
+      </div>
+    </div>
+    <div class="sessions-grid" id="sessionsGrid"></div>
+  </div>
+</div>
+
+<script>var DASHBOARD_DATA = {"players":[{"name":"Stella Munthe-Kaas","invited":68,"attended":42,"pct":62,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":true},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":true},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":true},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":true},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":true},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":true},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Pauline Rasmussen Holand","invited":68,"attended":37,"pct":54,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":true},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":true},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":true},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Ada Louise Eriksen","invited":68,"attended":34,"pct":50,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Frida R\u00f8hrt","invited":68,"attended":32,"pct":47,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Olava Beck-Huse","invited":68,"attended":28,"pct":41,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":true},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":true},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":true},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Erle Husum Kydland","invited":68,"attended":29,"pct":43,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":true},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":true},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Alma Stenbek Martens","invited":68,"attended":20,"pct":29,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":true},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Elise Hopstad","invited":68,"attended":17,"pct":25,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":true},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":false},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":true},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":false},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":true},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Hermine Lundkvist","invited":68,"attended":17,"pct":25,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":false},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Iben L\u00f8mo Hage","invited":68,"attended":16,"pct":24,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Mia Cossais","invited":68,"attended":14,"pct":21,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Selma Frossard","invited":68,"attended":15,"pct":22,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Elemine Alstads\u00e6ter","invited":68,"attended":15,"pct":22,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":true},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":true},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":true},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":true},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":true},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Maria Jensen L\u00f8seth","invited":68,"attended":14,"pct":21,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":true},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":true}]},{"name":"Nanna Reithaug F\u00f8yn","invited":68,"attended":8,"pct":12,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":true},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":true},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Norun Narverud Slaatten","invited":68,"attended":7,"pct":10,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":true},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":false},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":true},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":false},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Ameli N\u00e6spe","invited":68,"attended":6,"pct":9,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":false},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":false},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":true},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":true},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":true},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":true},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Mathilde Ravik Bergstr\u00f8m","invited":68,"attended":6,"pct":9,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":true},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":true},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":true},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":true},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":true},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":true},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":false},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Tomine Engelstad Heimdahl","invited":68,"attended":1,"pct":1,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":false},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":false},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":false},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":false},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":true},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]},{"name":"Sanna Sterri","invited":68,"attended":0,"pct":0,"sessions":[{"date":"2026-03-24","training":"J2015 Innetrening","attended":false},{"date":"2026-03-20","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-19","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-18","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-17","training":"J2015 Innetrening","attended":false},{"date":"2026-03-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-10","training":"J2015 Innetrening","attended":false},{"date":"2026-03-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-03-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-03-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-03-03","training":"J2015 Innetrening","attended":false},{"date":"2026-02-27","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-26","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-25","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-13","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-12","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-11","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-10","training":"J2015 Innetrening","attended":false},{"date":"2026-02-06","training":"J2015 FFO fredag","attended":false},{"date":"2026-02-05","training":"J2015 FFO torsdag","attended":false},{"date":"2026-02-04","training":"J2015 FFO onsdag","attended":false},{"date":"2026-02-03","training":"J2015 Utetrening","attended":false},{"date":"2026-01-30","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-29","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-28","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-27","training":"J2015 Innetrening","attended":false},{"date":"2026-01-23","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-22","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-21","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-20","training":"J2015 Innetrening","attended":false},{"date":"2026-01-16","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-15","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-14","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-13","training":"J2015 Innetrening","attended":false},{"date":"2026-01-09","training":"J2015 FFO fredag","attended":false},{"date":"2026-01-08","training":"J2015 FFO torsdag","attended":false},{"date":"2026-01-07","training":"J2015 FFO onsdag","attended":false},{"date":"2026-01-06","training":"J2015 Innetrening","attended":false},{"date":"2025-12-19","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-18","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-17","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-16","training":"Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","attended":false},{"date":"2025-12-12","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-11","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-10","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-09","training":"J2015 Innetrening","attended":false},{"date":"2025-12-05","training":"J2015 FFO fredag","attended":false},{"date":"2025-12-04","training":"J2015 FFO torsdag","attended":false},{"date":"2025-12-03","training":"J2015 FFO onsdag","attended":false},{"date":"2025-12-02","training":"J2015 Innetrening","attended":false},{"date":"2025-11-28","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-27","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-26","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-25","training":"J2015 Innetrening","attended":false},{"date":"2025-11-21","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-20","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-19","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-18","training":"J2015 Innetrening","attended":false},{"date":"2025-11-14","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-13","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-12","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-11","training":"J2015 Innetrening","attended":false},{"date":"2025-11-07","training":"J2015 FFO fredag","attended":false},{"date":"2025-11-06","training":"J2015 FFO torsdag","attended":false},{"date":"2025-11-05","training":"J2015 FFO onsdag","attended":false},{"date":"2025-11-04","training":"J2015 Innetrening","attended":false}]}],"dates":["2026-03-24","2026-03-20","2026-03-19","2026-03-18","2026-03-17","2026-03-13","2026-03-12","2026-03-11","2026-03-10","2026-03-06","2026-03-05","2026-03-04","2026-03-03","2026-02-27","2026-02-26","2026-02-25","2026-02-13","2026-02-12","2026-02-11","2026-02-10","2026-02-06","2026-02-05","2026-02-04","2026-02-03","2026-01-30","2026-01-29","2026-01-28","2026-01-27","2026-01-23","2026-01-22","2026-01-21","2026-01-20","2026-01-16","2026-01-15","2026-01-14","2026-01-13","2026-01-09","2026-01-08","2026-01-07","2026-01-06","2025-12-19","2025-12-18","2025-12-17","2025-12-16","2025-12-12","2025-12-11","2025-12-10","2025-12-09","2025-12-05","2025-12-04","2025-12-03","2025-12-02","2025-11-28","2025-11-27","2025-11-26","2025-11-25","2025-11-21","2025-11-20","2025-11-19","2025-11-18","2025-11-14","2025-11-13","2025-11-12","2025-11-11","2025-11-07","2025-11-06","2025-11-05","2025-11-04"],"trainings":["J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Utetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","Juleavslutning J2015 \u26bd\ufe0f\ud83c\udf84\ud83e\udd36","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening","J2015 FFO fredag","J2015 FFO torsdag","J2015 FFO onsdag","J2015 Innetrening"]};</script>
+<script>
+var activeType = 'all';
+var sortCol = 'attended';
+var sortDir = 1;
+var selectedPlayer = null;
+var searchQuery = '';
+
+var TYPE_COLORS = {
+  'J2015 Innetrening': '#6b46c1',
+  'J2015 FFO fredag': '#2f855a',
+  'J2015 FFO torsdag': '#c05621',
+  'J2015 FFO onsdag': '#2c7a7b',
+  'annet': '#718096'
+};
+var ALL_TYPES = ['all','J2015 Innetrening','J2015 FFO fredag','J2015 FFO torsdag','J2015 FFO onsdag','annet'];
+var TYPE_LABELS = {'all':'Alle','J2015 Innetrening':'Innetrening','J2015 FFO fredag':'FFO fredag','J2015 FFO torsdag':'FFO torsdag','J2015 FFO onsdag':'FFO onsdag','annet':'Andre'};
+
+function getTypeGroup(training) {
+  return TYPE_COLORS[training] ? training : 'annet';
+}
+
+function computeStats(player, typeFilter) {
+  if (typeFilter === 'all') {
+    return {
+      attended: player.attended,
+      invited: player.invited,
+      pct: player.invited > 0 ? Math.round(player.attended / player.invited * 100) : 0
+    };
+  }
+  var sessions = player.sessions.filter(function(s) {
+    var grp = getTypeGroup(s.training);
+    return typeFilter === 'annet' ? grp === 'annet' : s.training === typeFilter;
+  });
+  var invited = sessions.length;
+  var attended = sessions.filter(function(s){ return s.attended; }).length;
+  return { attended: attended, invited: invited, pct: invited > 0 ? Math.round(attended / invited * 100) : 0 };
+}
+
+function renderStats() {
+  var grid = document.getElementById('statsGrid');
+  var totalSessions = DASHBOARD_DATA.dates.length;
+  var totalPlayers = DASHBOARD_DATA.players.length;
+  var sumPct = 0;
+  DASHBOARD_DATA.players.forEach(function(p){ sumPct += p.pct; });
+  var avgPct = Math.round(sumPct / totalPlayers);
+  var top = DASHBOARD_DATA.players.slice().sort(function(a,b){ return b.attended - a.attended; })[0];
+  grid.innerHTML =
+    '<div class="stat-card"><div class="stat-value">' + totalPlayers + '</div><div class="stat-label">Spillere</div></div>' +
+    '<div class="stat-card"><div class="stat-value">' + totalSessions + '</div><div class="stat-label">Treninger totalt</div></div>' +
+    '<div class="stat-card"><div class="stat-value">' + avgPct + '%</div><div class="stat-label">Snitt oppmøte</div></div>' +
+    '<div class="stat-card"><div class="stat-value">' + top.attended + '</div><div class="stat-label">Mest oppmøte (' + top.name.split(' ')[0] + ')</div></div>';
+}
+
+function buildTypeFilters() {
+  var container = document.getElementById('typeFilters');
+  container.innerHTML = '';
+  ALL_TYPES.forEach(function(type) {
+    var chip = document.createElement('div');
+    chip.className = 'type-chip';
+    var color = type === 'all' ? '#2b6cb0' : (TYPE_COLORS[type] || TYPE_COLORS['annet']);
+    var isActive = activeType === type;
+    chip.style.borderColor = color;
+    chip.style.color = isActive ? 'white' : color;
+    chip.style.backgroundColor = isActive ? color : 'white';
+    chip.textContent = TYPE_LABELS[type] || type;
+    chip.addEventListener('click', function() {
+      activeType = type;
+      buildTypeFilters();
+      renderRanking();
+      if (selectedPlayer) showPlayerDetail(selectedPlayer);
+    });
+    container.appendChild(chip);
+  });
+}
+
+function renderRanking() {
+  var tbody = document.getElementById('rankingBody');
+  var search = searchQuery.toLowerCase();
+
+  var players = DASHBOARD_DATA.players.map(function(p) {
+    var stats = computeStats(p, activeType);
+    return {
+      name: p.name, sessions: p.sessions,
+      attended: p.attended, invited: p.invited, pct: p.pct,
+      filteredAttended: stats.attended,
+      filteredInvited: stats.invited,
+      filteredPct: stats.pct
+    };
+  });
+
+  // Sort
+  players.sort(function(a, b) {
+    var av, bv;
+    if (sortCol === 'attended') { av = a.filteredAttended; bv = b.filteredAttended; }
+    else if (sortCol === 'invited') { av = a.filteredInvited; bv = b.filteredInvited; }
+    else { av = a.name; bv = b.name; }
+    if (av < bv) return sortDir;
+    if (av > bv) return -sortDir;
+    return 0;
+  });
+
+  // Assign ranks by filteredAttended desc
+  var forRank = players.slice().sort(function(a,b){ return b.filteredAttended - a.filteredAttended; });
+  var rankMap = {};
+  forRank.forEach(function(p, i){ if (!(p.name in rankMap)) rankMap[p.name] = i + 1; });
+
+  // Apply search filter
+  var filtered = search
+    ? players.filter(function(p){ return p.name.toLowerCase().indexOf(search) !== -1; })
+    : players;
+
+  tbody.innerHTML = '';
+  filtered.forEach(function(p) {
+    var rank = rankMap[p.name];
+    var pct = p.filteredPct;
+    var barClass = pct >= 60 ? 'bar-high' : pct >= 40 ? 'bar-mid' : 'bar-low';
+    var isSelected = selectedPlayer && selectedPlayer.name === p.name;
+    var rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+
+    var tr = document.createElement('tr');
+    tr.className = 'data-row' + (isSelected ? ' highlighted' : '');
+    tr.innerHTML =
+      '<td><span class="rank-badge ' + rankClass + '">' + rank + '</span></td>' +
+      '<td><span class="player-name' + (isSelected ? ' selected' : '') + '">' + p.name + '</span></td>' +
+      '<td><span class="attended-count">' + p.filteredAttended + '</span></td>' +
+      '<td><span class="invited-count">' + p.filteredInvited + '</span></td>' +
+      '<td><div class="progress-bar-wrap">' +
+        '<div class="progress-bar-bg"><div class="progress-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div>' +
+        '<span class="pct-text">' + pct + '%</span>' +
+      '</div></td>';
+
+    tr.addEventListener('click', function() {
+      if (selectedPlayer && selectedPlayer.name === p.name) {
+        clearSelection();
+      } else {
+        selectedPlayer = p;
+        renderRanking();
+        showPlayerDetail(p);
+      }
+    });
+    tbody.appendChild(tr);
+  });
+
+  if (filtered.length === 0) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="5" style="text-align:center;padding:32px;color:#a0aec0;">Ingen spillere funnet</td>';
+    tbody.appendChild(tr);
+  }
+
+  updateSortIcons();
+}
+
+function updateSortIcons() {
+  var cols = {name: 'sortName', attended: 'sortAttended', invited: 'sortInvited'};
+  Object.keys(cols).forEach(function(col) {
+    var th = document.getElementById(cols[col]);
+    var label = col === 'name' ? 'Spiller' : col === 'attended' ? 'Deltatt' : 'Invitert';
+    var icon = sortCol === col ? (sortDir === 1 ? ' ↓' : ' ↑') : ' ↕';
+    th.innerHTML = label + icon;
+  });
+}
+
+function showPlayerDetail(player) {
+  var detail = document.getElementById('playerDetail');
+  detail.classList.add('visible');
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  var initials = player.name.split(' ').map(function(w){ return w[0] || ''; }).join('').substring(0, 2).toUpperCase();
+  document.getElementById('detailAvatar').textContent = initials;
+  document.getElementById('detailName').textContent = player.name;
+
+  var stats = computeStats(player, activeType);
+  document.getElementById('detailMeta').innerHTML =
+    '<span>Deltatt: <b>' + stats.attended + '</b></span>' +
+    '<span>Invitert: <b>' + stats.invited + '</b></span>' +
+    '<span>Oppmøte: <b>' + stats.pct + '%</b></span>';
+
+  var sessions = activeType === 'all'
+    ? player.sessions.slice()
+    : player.sessions.filter(function(s) {
+        var grp = getTypeGroup(s.training);
+        return activeType === 'annet' ? grp === 'annet' : s.training === activeType;
+      });
+
+  sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
+
+  var MONTH_NAMES = ['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+
+  var monthMap = {};
+  var monthOrder = [];
+  sessions.forEach(function(s) {
+    var d = new Date(s.date + 'T12:00:00');
+    var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (!monthMap[key]) { monthMap[key] = []; monthOrder.push(key); }
+    monthMap[key].push(s);
+  });
+
+  var grid = document.getElementById('sessionsGrid');
+  grid.innerHTML = '';
+  grid.className = 'calendar-wrap';
+
+  monthOrder.forEach(function(key) {
+    var parts = key.split('-');
+    var monthIdx = parseInt(parts[1]) - 1;
+    var year = parts[0];
+
+    var monthEl = document.createElement('div');
+    monthEl.className = 'cal-month';
+    monthEl.innerHTML = '<div class="cal-month-title">' + MONTH_NAMES[monthIdx] + ' ' + year + '</div>';
+
+    var sessionsEl = document.createElement('div');
+    sessionsEl.className = 'cal-sessions';
+
+    monthMap[key].forEach(function(s) {
+      var d = new Date(s.date + 'T12:00:00');
+      var dateStr = d.getDate() + '. ' + MONTH_NAMES[monthIdx].substring(0, 3);
+      var icon = s.attended ? '\u2713' : '\u2717';
+      var typeShort = s.training.replace('J2015 ', '');
+      var chip = document.createElement('div');
+      chip.className = 'session-chip ' + (s.attended ? 'present' : 'absent');
+      chip.innerHTML =
+        '<span class="session-icon">' + icon + '</span>' +
+        '<span class="session-info">' +
+          '<span class="session-date">' + dateStr + '</span>' +
+          '<span class="session-type">' + typeShort + '</span>' +
+        '</span>';
+      sessionsEl.appendChild(chip);
+    });
+
+    monthEl.appendChild(sessionsEl);
+    grid.appendChild(monthEl);
+  });
+}
+
+function clearSelection() {
+  selectedPlayer = null;
+  document.getElementById('playerDetail').classList.remove('visible');
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  renderRanking();
+}
+
+// Sort header click handlers
+document.getElementById('sortName').addEventListener('click', function() {
+  if (sortCol === 'name') sortDir = -sortDir; else { sortCol = 'name'; sortDir = 1; }
+  renderRanking();
+});
+document.getElementById('sortAttended').addEventListener('click', function() {
+  if (sortCol === 'attended') sortDir = -sortDir; else { sortCol = 'attended'; sortDir = -1; }
+  renderRanking();
+});
+document.getElementById('sortInvited').addEventListener('click', function() {
+  if (sortCol === 'invited') sortDir = -sortDir; else { sortCol = 'invited'; sortDir = -1; }
+  renderRanking();
+});
+
+// Autocomplete
+var acInput = document.getElementById('searchInput');
+var acDropdown = document.getElementById('autocompleteDropdown');
+var acActiveIndex = -1;
+
+function getPlayerNames() {
+  return DASHBOARD_DATA.players.map(function(p){ return p.name; });
+}
+
+function openDropdown(query) {
+  var names = getPlayerNames();
+  var q = query.toLowerCase();
+  var matches = q === ''
+    ? names
+    : names.filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; });
+
+  acDropdown.innerHTML = '';
+  acActiveIndex = -1;
+
+  if (matches.length === 0) {
+    acDropdown.innerHTML = '<div class="autocomplete-no-results">Ingen treff</div>';
+    acDropdown.classList.add('open');
+    return;
+  }
+
+  matches.forEach(function(name, i) {
+    var item = document.createElement('div');
+    item.className = 'autocomplete-item';
+    // Highlight matching part
+    if (q) {
+      var idx = name.toLowerCase().indexOf(q);
+      item.innerHTML =
+        escapeHtml(name.substring(0, idx)) +
+        '<mark>' + escapeHtml(name.substring(idx, idx + q.length)) + '</mark>' +
+        escapeHtml(name.substring(idx + q.length));
+    } else {
+      item.textContent = name;
+    }
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      selectPlayer(name);
+    });
+    acDropdown.appendChild(item);
+  });
+  acDropdown.classList.add('open');
+}
+
+function closeDropdown() {
+  acDropdown.classList.remove('open');
+  acActiveIndex = -1;
+}
+
+function selectPlayer(name) {
+  acInput.value = name;
+  searchQuery = name;
+  closeDropdown();
+  renderRanking();
+  // Also open detail for this player
+  var player = DASHBOARD_DATA.players.find(function(p){ return p.name === name; });
+  if (player) {
+    // Build filtered player object same way renderRanking does
+    var stats = computeStats(player, activeType);
+    var fp = Object.assign({}, player, {
+      filteredAttended: stats.attended, filteredInvited: stats.invited, filteredPct: stats.pct
+    });
+    selectedPlayer = fp;
+    renderRanking();
+    showPlayerDetail(fp);
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+acInput.addEventListener('focus', function() {
+  openDropdown(acInput.value);
+});
+
+acInput.addEventListener('input', function(e) {
+  searchQuery = e.target.value;
+  openDropdown(e.target.value);
+  // If field is cleared, reset selected player filter
+  if (e.target.value === '') {
+    selectedPlayer = null;
+  }
+  renderRanking();
+});
+
+acInput.addEventListener('keydown', function(e) {
+  var items = acDropdown.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acActiveIndex = Math.min(acActiveIndex + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acActiveIndex = Math.max(acActiveIndex - 1, 0);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acActiveIndex >= 0 && items[acActiveIndex]) {
+      selectPlayer(items[acActiveIndex].textContent.trim());
+    }
+    return;
+  } else if (e.key === 'Escape') {
+    closeDropdown();
+    return;
+  }
+  items.forEach(function(item, i) {
+    item.classList.toggle('active', i === acActiveIndex);
+  });
+});
+
+acInput.addEventListener('blur', function() {
+  setTimeout(closeDropdown, 150);
+});
+
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('autocompleteWrap').contains(e.target)) {
+    closeDropdown();
+  }
+});
+
+// Init
+renderStats();
+buildTypeFilters();
+renderRanking();
+
+// ---- Excel upload ----
+function excelSerialToDate(serial) {
+  var utc_days = Math.floor(serial - 25569);
+  var date = new Date(utc_days * 86400 * 1000);
+  var y = date.getUTCFullYear();
+  var m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  var d = String(date.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+
+function parseExcelData(workbook) {
+  var ws = workbook.Sheets[workbook.SheetNames[0]];
+  var rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+  var headerRow = rows[0];
+  var trainingRow = rows[1];
+
+  var dates = [];
+  var trainings = [];
+  for (var i = 7; i < headerRow.length; i++) {
+    var d = headerRow[i];
+    dates.push(typeof d === 'number' ? excelSerialToDate(d) : '');
+    var t = trainingRow[i] ? trainingRow[i].replace(/\*/g, '').trim() : '';
+    trainings.push(t);
+  }
+
+  var players = [];
+  for (var r = 2; r < rows.length; r++) {
+    var row = rows[r];
+    if (!row[0] || typeof row[0] !== 'string' || row[0].length > 60) continue;
+    // Skip Hospitering sessions
+    var sessions = [];
+    for (var j = 0; j < dates.length; j++) {
+      if (trainings[j].indexOf('Hospitering') !== -1) continue;
+      sessions.push({
+        date: dates[j],
+        training: trainings[j],
+        attended: row[7 + j] === 1
+      });
+    }
+    var invited = sessions.length;
+    var attended = sessions.filter(function(s){ return s.attended; }).length;
+    players.push({
+      name: row[0],
+      invited: invited,
+      attended: attended,
+      pct: invited > 0 ? Math.round(attended / invited * 100) : 0,
+      sessions: sessions
+    });
+  }
+
+  var filteredDates = dates.filter(function(_, i){ return trainings[i].indexOf('Hospitering') === -1; });
+  var filteredTrainings = trainings.filter(function(t){ return t.indexOf('Hospitering') === -1; });
+
+  return { players: players, dates: filteredDates, trainings: filteredTrainings };
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  var status = document.getElementById('uploadStatus');
+  status.textContent = 'Laster inn...';
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = new Uint8Array(ev.target.result);
+      var workbook = XLSX.read(data, { type: 'array' });
+      var parsed = parseExcelData(workbook);
+
+      if (parsed.players.length === 0) {
+        status.textContent = '\u26A0\uFE0F Fant ingen spillere i filen.';
+        return;
+      }
+
+      DASHBOARD_DATA = parsed;
+      selectedPlayer = null;
+      searchQuery = '';
+      document.getElementById('searchInput').value = '';
+      document.getElementById('playerDetail').classList.remove('visible');
+
+      // Update header
+      var name = file.name.replace(/\.xlsx?$/, '');
+      document.getElementById('headerTitle').textContent = name;
+      document.getElementById('headerSub').textContent = parsed.players.length + ' spillere \u2014 ' + parsed.dates.length + ' treninger';
+      status.textContent = '\u2713 Innlastet!';
+      setTimeout(function(){ status.textContent = ''; }, 3000);
+
+      renderStats();
+      buildTypeFilters();
+      renderRanking();
+    } catch(err) {
+      status.textContent = '\u26A0\uFE0F Kunne ikke lese filen. Prøv igjen.';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+</script>
+</body>
+</html>
