@@ -353,7 +353,7 @@
 
 
 <script>
-var activeType = 'all';
+var activeTypes = {}; // empty = all types shown
 var excludedTrainings = {};
 var activeMonths = {}; // empty = all months shown
 var sortCol = 'attended';
@@ -436,8 +436,9 @@ function buildFilterMap(analysis, step2Names, step2Separate) {
 
 function activateDashboard(parsed, fileName) {
   DASHBOARD_DATA = parsed;
-  activeType = 'all';
+  activeTypes = {};
   activeMonths = {};
+  excludedTrainings = {};
   selectedPlayer = null;
   searchQuery = '';
   document.getElementById('searchInput').value = '';
@@ -479,22 +480,15 @@ function getTypeGroup(training) {
   return filterMap[training] || training;
 }
 
-function computeStats(player, typeFilter) {
-  if (typeFilter === 'all') {
-    var allSessions = player.sessions.filter(function(s) {
-      return sessionInActiveMonths(s);
-    });
-    var allAttended = allSessions.filter(function(s){ return s.attended; }).length;
-    return {
-      attended: allAttended,
-      invited: allSessions.length,
-      pct: allSessions.length > 0 ? Math.round(allAttended / allSessions.length * 100) : 0
-    };
-  }
-  var sessions = player.sessions.filter(function(s) {
-    return getTypeGroup(s.training) === typeFilter && !excludedTrainings[s.training] && sessionInActiveMonths(s);
-  });
+function sessionMatchesActiveTypes(s) {
+  if (Object.keys(activeTypes).length === 0) return true;
+  return !!activeTypes[getTypeGroup(s.training)];
+}
 
+function computeStats(player) {
+  var sessions = player.sessions.filter(function(s) {
+    return sessionMatchesActiveTypes(s) && !excludedTrainings[s.training] && sessionInActiveMonths(s);
+  });
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
   return { attended: attended, invited: invited, pct: invited > 0 ? Math.round(attended / invited * 100) : 0 };
@@ -544,19 +538,37 @@ function buildTypeFilters() {
   container.innerHTML = '';
 
   var displayMap = getFilterDisplayNames(DYNAMIC_TYPES) || {};
+  var allSelected = Object.keys(activeTypes).length === 0;
 
-  var allTypes = ['all'].concat(DYNAMIC_TYPES);
-  allTypes.forEach(function(type) {
+  // "Alle" chip
+  var allChip = document.createElement('div');
+  allChip.className = 'type-chip';
+  allChip.style.borderColor = '#2b6cb0';
+  allChip.style.color = allSelected ? 'white' : '#2b6cb0';
+  allChip.style.backgroundColor = allSelected ? '#2b6cb0' : 'white';
+  allChip.textContent = 'Alle';
+  allChip.addEventListener('click', function() {
+    activeTypes = {};
+    excludedTrainings = {};
+    buildTypeFilters();
+    buildActiveFilterDetail();
+    renderRanking();
+    if (selectedPlayer) showPlayerDetail(selectedPlayer);
+  });
+  container.appendChild(allChip);
+
+  DYNAMIC_TYPES.forEach(function(type) {
+    var isActive = !!activeTypes[type];
+    var color = getTypeColor(type);
     var chip = document.createElement('div');
     chip.className = 'type-chip';
-    var color = type === 'all' ? '#2b6cb0' : getTypeColor(type);
-    var isActive = activeType === type;
     chip.style.borderColor = color;
     chip.style.color = isActive ? 'white' : color;
     chip.style.backgroundColor = isActive ? color : 'white';
-    chip.textContent = type === 'all' ? 'Alle' : (displayMap[type] || type);
+    chip.textContent = displayMap[type] || type;
     chip.addEventListener('click', function() {
-      activeType = type;
+      if (activeTypes[type]) delete activeTypes[type];
+      else activeTypes[type] = true;
       excludedTrainings = {};
       buildTypeFilters();
       buildActiveFilterDetail();
@@ -570,10 +582,11 @@ function buildTypeFilters() {
 function buildActiveFilterDetail() {
   var detail = document.getElementById('activeFilterDetail');
   var list = document.getElementById('activeFilterList');
-  if (activeType === 'all' || !window.FILTER_MAP) { detail.style.display = 'none'; return; }
+  var noTypesSelected = Object.keys(activeTypes).length === 0;
+  if (noTypesSelected || !window.FILTER_MAP) { detail.style.display = 'none'; return; }
 
   var trainings = Object.keys(window.FILTER_MAP).filter(function(t) {
-    return window.FILTER_MAP[t] === activeType;
+    return !!activeTypes[window.FILTER_MAP[t]];
   });
   if (trainings.length <= 1) { detail.style.display = 'none'; return; }
 
@@ -661,7 +674,7 @@ function renderRanking() {
   var search = searchQuery.toLowerCase();
 
   var players = DASHBOARD_DATA.players.map(function(p) {
-    var stats = computeStats(p, activeType);
+    var stats = computeStats(p);
     return {
       name: p.name, sessions: p.sessions,
       attended: p.attended, invited: p.invited, pct: p.pct,
@@ -752,16 +765,14 @@ function showPlayerDetail(player) {
   document.getElementById('detailAvatar').textContent = initials;
   document.getElementById('detailName').textContent = player.name;
 
-  var stats = computeStats(player, activeType);
+  var stats = computeStats(player);
   document.getElementById('detailMeta').innerHTML =
     '<span>Deltatt: <b>' + stats.attended + '</b></span>' +
     '<span>Invitert: <b>' + stats.invited + '</b></span>' +
     '<span>Oppmøte: <b>' + stats.pct + '%</b></span>';
 
-  var sessions = activeType === 'all'
-    ? player.sessions.filter(function(s) { return !excludedTrainings[s.training] && sessionInActiveMonths(s); })
-    : player.sessions.filter(function(s) {
-        return getTypeGroup(s.training) === activeType && !excludedTrainings[s.training] && sessionInActiveMonths(s);
+  var sessions = player.sessions.filter(function(s) {
+        return sessionMatchesActiveTypes(s) && !excludedTrainings[s.training] && sessionInActiveMonths(s);
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
@@ -897,7 +908,7 @@ function selectPlayer(name) {
   var player = DASHBOARD_DATA.players.find(function(p){ return p.name === name; });
   if (player) {
     // Build filtered player object same way renderRanking does
-    var stats = computeStats(player, activeType);
+    var stats = computeStats(player);
     var fp = Object.assign({}, player, {
       filteredAttended: stats.attended, filteredInvited: stats.invited, filteredPct: stats.pct
     });
