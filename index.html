@@ -275,7 +275,7 @@
 <div class="header">
   <div class="header-icon">&#x26BD;</div>
   <div class="header-text">
-    <h1 id="headerTitle">Oppm&#xF8;tedashboard</h1>
+    <h1 id="headerTitle">Oppm&#xF8;tehistorikk</h1>
     <p id="headerSub">Last opp en Excel-fil for å se oppmøtehistorikk</p>
   </div>
   <div>
@@ -436,8 +436,8 @@ function activateDashboard(parsed, fileName) {
   searchQuery = '';
   document.getElementById('searchInput').value = '';
   document.getElementById('playerDetail').classList.remove('visible');
-  document.getElementById('headerTitle').textContent = fileName;
-  document.getElementById('headerSub').textContent = parsed.players.length + ' spillere \u2014 ' + parsed.dates.length + ' treninger';
+  document.getElementById('headerTitle').textContent = 'Oppm\u00F8tehistorikk';
+  document.getElementById('headerSub').textContent = fileName;
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('dashboardContent').style.display = 'block';
   renderStats();
