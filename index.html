@@ -1101,7 +1101,6 @@ function parseExcelData(workbook) {
     if (!row[0] || typeof row[0] !== 'string' || row[0].length > 60) continue;
     var sessions = [];
     for (var j = 0; j < dates.length; j++) {
-      if (trainings[j].indexOf('Hospitering') !== -1) continue;
       sessions.push({
         date: dates[j],
         training: trainings[j],
@@ -1122,10 +1121,7 @@ function parseExcelData(workbook) {
   if (players.length === 0)
     throw new Error('Fant ingen spillere i filen. Sjekk at dette er en Spond oppm\u00F8tehistorikk-fil.');
 
-  var filteredDates = dates.filter(function(_, i){ return trainings[i].indexOf('Hospitering') === -1; });
-  var filteredTrainings = trainings.filter(function(t){ return t.indexOf('Hospitering') === -1; });
-
-  return { players: players, dates: filteredDates, trainings: filteredTrainings };
+  return { players: players, dates: dates, trainings: trainings };
 }
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
