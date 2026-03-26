@@ -437,7 +437,7 @@ function activateDashboard(parsed, fileName) {
   document.getElementById('searchInput').value = '';
   document.getElementById('playerDetail').classList.remove('visible');
   document.getElementById('headerTitle').textContent = 'Oppm\u00F8tehistorikk';
-  document.getElementById('headerSub').textContent = fileName;
+  document.getElementById('headerSub').textContent = '\uD83D\uDCC2 ' + fileName;
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('dashboardContent').style.display = 'block';
   renderStats();
