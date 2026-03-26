@@ -408,12 +408,17 @@ function analyzeTrainings(parsed) {
   return { step1: step1, step2Groups: step2Groups, step3: step3 };
 }
 
-function buildFilterMap(analysis, step2Names) {
+function buildFilterMap(analysis, step2Names, step2Separate) {
   var map = {};
   analysis.step1.forEach(function(name) { map[name] = name; });
   analysis.step2Groups.forEach(function(g, i) {
-    var filterName = (step2Names[i] || '').trim() || g.suggestedName;
-    g.trainings.forEach(function(t) { map[t] = filterName; });
+    if (step2Separate && step2Separate[i]) {
+      // Keep each training as its own filter
+      g.trainings.forEach(function(t) { map[t] = t; });
+    } else {
+      var filterName = (step2Names[i] || '').trim() || g.suggestedName;
+      g.trainings.forEach(function(t) { map[t] = filterName; });
+    }
   });
   analysis.step3.forEach(function(name) { map[name] = 'Annet'; });
   return map;
@@ -887,8 +892,24 @@ function openGroupModal(parsed, fileName) {
     input.dataset.groupIndex = i;
     input.placeholder = 'Navn p\u00E5 filtreringsvalg';
     row.appendChild(input);
+
+    // Checkbox: keep separate
+    var sepLabel = document.createElement('label');
+    sepLabel.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#718096;margin-top:6px;cursor:pointer;';
+    var sepCheck = document.createElement('input');
+    sepCheck.type = 'checkbox';
+    sepCheck.dataset.groupIndex = i;
+    sepCheck.className = 'sep-check';
+    sepCheck.addEventListener('change', function() {
+      input.disabled = sepCheck.checked;
+      input.style.opacity = sepCheck.checked ? '0.4' : '1';
+    });
+    sepLabel.appendChild(sepCheck);
+    sepLabel.appendChild(document.createTextNode('Behold separate filtreringsvalg'));
+
     wrap.appendChild(trainingList);
     wrap.appendChild(row);
+    wrap.appendChild(sepLabel);
     container.appendChild(wrap);
   });
 
@@ -897,9 +918,12 @@ function openGroupModal(parsed, fileName) {
 
 document.getElementById('applyGroupBtn').addEventListener('click', function() {
   var inputs = document.querySelectorAll('#step2GroupsContainer input[type=text]');
+  var sepChecks = document.querySelectorAll('#step2GroupsContainer .sep-check');
   var step2Names = [];
+  var step2Separate = [];
   inputs.forEach(function(inp) { step2Names.push(inp.value); });
-  window.FILTER_MAP = buildFilterMap(pendingAnalysis, step2Names);
+  sepChecks.forEach(function(chk) { step2Separate.push(chk.checked); });
+  window.FILTER_MAP = buildFilterMap(pendingAnalysis, step2Names, step2Separate);
   document.getElementById('groupModal').classList.remove('open');
   activateDashboard(pendingParsedData, pendingFileName);
 });
