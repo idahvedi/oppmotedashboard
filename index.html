@@ -263,21 +263,11 @@
 
 <div class="modal-overlay" id="groupModal">
   <div class="modal">
-    <h2>Konfigurer filtreringsvalg</h2>
-    <p>Velg arrangementer som skal sl&#xE5;s sammen til ett filtreringsvalg, skriv inn et gruppenavn og trykk &laquo;Legg til gruppe&raquo;. Arrangementer uten gruppe vises enkeltvis.</p>
-
-    <div class="training-list" id="trainingList"></div>
-
-    <div class="group-input-row">
-      <input type="text" id="groupNameInput" placeholder="Gruppenavn, f.eks. Futsal">
-      <button class="btn btn-primary" id="addGroupBtn" disabled>Legg til gruppe</button>
-    </div>
-
-    <div class="groups-list" id="groupsList"></div>
-
+    <h2>Gi navn til filtreringsvalg</h2>
+    <p id="modalDesc"></p>
+    <div id="step2GroupsContainer"></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" id="skipGroupBtn">Hopp over</button>
-      <button class="btn btn-primary" id="applyGroupBtn">Bruk gruppering</button>
+      <button class="btn btn-primary" id="applyGroupBtn">Bruk</button>
     </div>
   </div>
 </div>
@@ -297,7 +287,6 @@
   </div>
 </div>
 
-<div id="debugInfo" style="background:#fef3c7;padding:10px 16px;font-size:0.8rem;font-family:monospace;word-break:break-all;display:block;min-height:1.5em;"></div>
 <div class="container">
   <div class="stats-grid" id="statsGrid"></div>
 
@@ -362,8 +351,64 @@ var COLOR_PALETTE = [
 var DYNAMIC_TYPES = [];     // list of unique training names from data
 var DYNAMIC_COLOR_MAP = {}; // training name -> colour
 
-function getBaseType(training) {
-  return training;
+// --- Filter map logic ---
+// FILTER_MAP: training name -> filter button name
+// Built after upload by analyzeTrainings + user input for step 2
+
+function normalizeForGrouping(name) {
+  // Strip trailing round/number suffixes, then take first 2 words
+  var n = name
+    .replace(/\s+(runde|del|uke|sesjon|nr|part|gruppe|trinn)\s*\d*\s*$/i, '')
+    .replace(/\s+\d+\s*$/, '')
+    .replace(/\s+[ivx]{1,4}\s*$/i, '')
+    .trim();
+  return n.split(/\s+/).slice(0, 2).join(' ');
+}
+
+function analyzeTrainings(parsed) {
+  // Count occurrences of each unique training name
+  var counts = {};
+  parsed.trainings.forEach(function(t) {
+    if (!t) return;
+    counts[t] = (counts[t] || 0) + 1;
+  });
+  var uniqueNames = Object.keys(counts);
+
+  // Step 1: names appearing >= 2 times -> auto filter (name as-is)
+  var step1 = uniqueNames.filter(function(n) { return counts[n] >= 2; });
+  var remaining = uniqueNames.filter(function(n) { return counts[n] < 2; });
+
+  // Step 2: group remaining by normalizeForGrouping key
+  var prefixGroups = {};
+  var prefixOrder = [];
+  remaining.forEach(function(n) {
+    var key = normalizeForGrouping(n);
+    if (!prefixGroups[key]) { prefixGroups[key] = []; prefixOrder.push(key); }
+    prefixGroups[key].push(n);
+  });
+
+  var step2Groups = []; // [{suggestedName, trainings}]
+  var step3 = [];
+  prefixOrder.forEach(function(key) {
+    if (prefixGroups[key].length >= 2) {
+      step2Groups.push({ suggestedName: key, trainings: prefixGroups[key] });
+    } else {
+      step3 = step3.concat(prefixGroups[key]);
+    }
+  });
+
+  return { step1: step1, step2Groups: step2Groups, step3: step3 };
+}
+
+function buildFilterMap(analysis, step2Names) {
+  var map = {};
+  analysis.step1.forEach(function(name) { map[name] = name; });
+  analysis.step2Groups.forEach(function(g, i) {
+    var filterName = (step2Names[i] || '').trim() || g.suggestedName;
+    g.trainings.forEach(function(t) { map[t] = filterName; });
+  });
+  analysis.step3.forEach(function(name) { map[name] = 'Annet'; });
+  return map;
 }
 
 function activateDashboard(parsed, fileName) {
@@ -381,19 +426,20 @@ function activateDashboard(parsed, fileName) {
 }
 
 function buildDynamicTypes() {
-  var userGroupMap = window.USER_GROUP_MAP || {};
+  var filterMap = window.FILTER_MAP || {};
   var seen = {};
   var types = [];
   DASHBOARD_DATA.trainings.forEach(function(t) {
     if (!t) return;
-    var group = userGroupMap[t] || t; // use user-defined group name, or training name as-is
-    if (!seen[group]) { seen[group] = true; types.push(group); }
+    var name = filterMap[t] || t;
+    if (!seen[name]) { seen[name] = true; types.push(name); }
   });
+  // Move 'Annet' to end
+  var ai = types.indexOf('Annet');
+  if (ai > -1) { types.splice(ai, 1); types.push('Annet'); }
   DYNAMIC_TYPES = types;
   DYNAMIC_COLOR_MAP = {};
-  types.forEach(function(t, i) {
-    DYNAMIC_COLOR_MAP[t] = COLOR_PALETTE[i % COLOR_PALETTE.length];
-  });
+  types.forEach(function(t, i) { DYNAMIC_COLOR_MAP[t] = COLOR_PALETTE[i % COLOR_PALETTE.length]; });
 }
 
 function getTypeColor(type) {
@@ -401,8 +447,8 @@ function getTypeColor(type) {
 }
 
 function getTypeGroup(training) {
-  var userGroupMap = window.USER_GROUP_MAP || {};
-  return userGroupMap[training] || training;
+  var filterMap = window.FILTER_MAP || {};
+  return filterMap[training] || training;
 }
 
 function computeStats(player, typeFilter) {
@@ -416,16 +462,7 @@ function computeStats(player, typeFilter) {
   var sessions = player.sessions.filter(function(s) {
     return getTypeGroup(s.training) === typeFilter;
   });
-  // DEBUG: show what's happening for first player
-  if (player === DASHBOARD_DATA.players[0] && sessions.length === 0 && player.sessions.length > 0) {
-    var sample = player.sessions[0].training;
-    var mapped = getTypeGroup(sample);
-    var debugEl = document.getElementById('debugInfo');
-    if (debugEl) debugEl.textContent = 'Filter: "' + typeFilter + '" | Eks. treningsnavn: "' + sample + '" | getTypeGroup: "' + mapped + '" | USER_GROUP_MAP: ' + JSON.stringify(window.USER_GROUP_MAP);
-  } else {
-    var debugEl = document.getElementById('debugInfo');
-    if (debugEl) debugEl.textContent = '';
-  }
+
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
   return { attended: attended, invited: invited, pct: invited > 0 ? Math.round(attended / invited * 100) : 0 };
@@ -773,7 +810,7 @@ document.addEventListener('click', function(e) {
   }
 });
 
-window.USER_GROUP_MAP = {};
+window.FILTER_MAP = {};
 // Init
 renderStats();
 buildTypeFilters();
@@ -782,97 +819,53 @@ renderRanking();
 // ---- Grouping modal ----
 var pendingParsedData = null;
 var pendingFileName = '';
-var userGroups = []; // [{name, trainings:[]}]
-var selectedTrainings = [];
+var pendingAnalysis = null;
 
 function openGroupModal(parsed, fileName) {
   pendingParsedData = parsed;
   pendingFileName = fileName;
-  userGroups = [];
-  selectedTrainings = [];
+  pendingAnalysis = analyzeTrainings(parsed);
 
-  // Get unique training names
-  var seen = {};
-  var uniqueTrainings = [];
-  parsed.trainings.forEach(function(t) {
-    if (t && !seen[t]) { seen[t] = true; uniqueTrainings.push(t); }
+  if (pendingAnalysis.step2Groups.length === 0) {
+    // No user input needed - apply directly
+    window.FILTER_MAP = buildFilterMap(pendingAnalysis, []);
+    activateDashboard(parsed, fileName);
+    return;
+  }
+
+  // Build modal content for step 2 groups
+  var container = document.getElementById('step2GroupsContainer');
+  container.innerHTML = '';
+  document.getElementById('modalDesc').textContent =
+    'Disse treningene ser ut til \u00E5 h\u00F8re sammen. Bekreft eller endre navn p\u00E5 hvert filtreringsvalg:';
+
+  pendingAnalysis.step2Groups.forEach(function(g, i) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:16px;';
+    var trainingList = document.createElement('div');
+    trainingList.style.cssText = 'font-size:0.8rem;color:#718096;margin-bottom:6px;';
+    trainingList.textContent = g.trainings.join(', ');
+    var row = document.createElement('div');
+    row.className = 'group-input-row';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = g.suggestedName;
+    input.dataset.groupIndex = i;
+    input.placeholder = 'Navn p\u00E5 filtreringsvalg';
+    row.appendChild(input);
+    wrap.appendChild(trainingList);
+    wrap.appendChild(row);
+    container.appendChild(wrap);
   });
 
-  // Render training list
-  var list = document.getElementById('trainingList');
-  list.innerHTML = '';
-  uniqueTrainings.forEach(function(t) {
-    var item = document.createElement('div');
-    item.className = 'training-item';
-    item.dataset.name = t;
-    item.innerHTML = '<div class="check"></div><span>' + t + '</span>';
-    item.addEventListener('click', function() {
-      var idx = selectedTrainings.indexOf(t);
-      if (idx === -1) { selectedTrainings.push(t); item.classList.add('selected'); item.querySelector('.check').textContent = '\u2713'; }
-      else { selectedTrainings.splice(idx, 1); item.classList.remove('selected'); item.querySelector('.check').textContent = ''; }
-      document.getElementById('addGroupBtn').disabled = selectedTrainings.length < 2;
-    });
-    list.appendChild(item);
-  });
-
-  document.getElementById('groupNameInput').value = '';
-  document.getElementById('groupsList').innerHTML = '';
-  document.getElementById('addGroupBtn').disabled = true;
   document.getElementById('groupModal').classList.add('open');
 }
 
-function renderGroupsList() {
-  var container = document.getElementById('groupsList');
-  container.innerHTML = '';
-  userGroups.forEach(function(g, i) {
-    var tag = document.createElement('div');
-    tag.className = 'group-tag';
-    tag.innerHTML =
-      '<div><div class="group-tag-name">' + g.name + '</div>' +
-      '<div class="group-tag-items">' + g.trainings.join(', ') + '</div></div>' +
-      '<button class="group-tag-remove" data-i="' + i + '">&times;</button>';
-    tag.querySelector('.group-tag-remove').addEventListener('click', function() {
-      // Re-enable the trainings in the list
-      g.trainings.forEach(function(t) {
-        var el = document.querySelector('.training-item[data-name="' + CSS.escape(t) + '"]');
-        if (el) { el.style.display = ''; }
-      });
-      userGroups.splice(i, 1);
-      renderGroupsList();
-    });
-    container.appendChild(tag);
-  });
-}
-
-document.getElementById('addGroupBtn').addEventListener('click', function() {
-  var name = document.getElementById('groupNameInput').value.trim();
-  if (!name || selectedTrainings.length < 2) return;
-  userGroups.push({ name: name, trainings: selectedTrainings.slice() });
-  // Hide grouped items from list
-  selectedTrainings.forEach(function(t) {
-    var el = document.querySelector('.training-item[data-name="' + CSS.escape(t) + '"]');
-    if (el) { el.style.display = 'none'; }
-  });
-  selectedTrainings = [];
-  document.getElementById('groupNameInput').value = '';
-  document.getElementById('addGroupBtn').disabled = true;
-  renderGroupsList();
-});
-
-function applyGroupsAndRender() {
-  document.getElementById('groupModal').classList.remove('open');
-  // Build group map: training name -> group name
-  var groupMap = {};
-  userGroups.forEach(function(g) {
-    g.trainings.forEach(function(t) { groupMap[t] = g.name; });
-  });
-  window.USER_GROUP_MAP = groupMap;
-  activateDashboard(pendingParsedData, pendingFileName);
-}
-
-document.getElementById('applyGroupBtn').addEventListener('click', applyGroupsAndRender);
-document.getElementById('skipGroupBtn').addEventListener('click', function() {
-  window.USER_GROUP_MAP = {};
+document.getElementById('applyGroupBtn').addEventListener('click', function() {
+  var inputs = document.querySelectorAll('#step2GroupsContainer input[type=text]');
+  var step2Names = [];
+  inputs.forEach(function(inp) { step2Names.push(inp.value); });
+  window.FILTER_MAP = buildFilterMap(pendingAnalysis, step2Names);
   document.getElementById('groupModal').classList.remove('open');
   activateDashboard(pendingParsedData, pendingFileName);
 });
