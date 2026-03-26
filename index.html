@@ -479,6 +479,7 @@ function computeStats(player, typeFilter) {
 }
 
 function renderStats() {
+  if (!DASHBOARD_DATA) return;
   var grid = document.getElementById('statsGrid');
   var totalSessions = DASHBOARD_DATA.dates.length;
   var totalPlayers = DASHBOARD_DATA.players.length;
@@ -494,6 +495,7 @@ function renderStats() {
 }
 
 function buildTypeFilters() {
+  if (!DASHBOARD_DATA) return;
   buildDynamicTypes();
   var container = document.getElementById('typeFilters');
   container.innerHTML = '';
@@ -519,6 +521,7 @@ function buildTypeFilters() {
 }
 
 function renderRanking() {
+  if (!DASHBOARD_DATA) return;
   var tbody = document.getElementById('rankingBody');
   var search = searchQuery.toLowerCase();
 
