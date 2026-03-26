@@ -880,36 +880,46 @@ function openGroupModal(parsed, fileName) {
 
   pendingAnalysis.step2Groups.forEach(function(g, i) {
     var wrap = document.createElement('div');
-    wrap.style.cssText = 'margin-bottom:16px;';
-    var trainingList = document.createElement('div');
-    trainingList.style.cssText = 'font-size:0.8rem;color:#718096;margin-bottom:6px;';
-    trainingList.textContent = g.trainings.join(', ');
-    var row = document.createElement('div');
-    row.className = 'group-input-row';
+    wrap.style.cssText = 'margin-bottom:16px;border:1px solid #e2e8f0;border-radius:8px;padding:12px;';
+
+    // Filter name input
+    var nameLabel = document.createElement('div');
+    nameLabel.style.cssText = 'font-size:0.75rem;font-weight:600;color:#4a5568;margin-bottom:4px;';
+    nameLabel.textContent = 'Filtreringsnavn:';
     var input = document.createElement('input');
     input.type = 'text';
     input.value = g.suggestedName;
     input.dataset.groupIndex = i;
+    input.className = 'group-name-input';
     input.placeholder = 'Navn p\u00E5 filtreringsvalg';
-    row.appendChild(input);
+    input.style.cssText = 'width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.85rem;margin-bottom:10px;';
 
-    // Checkbox: keep separate
-    var sepLabel = document.createElement('label');
-    sepLabel.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#718096;margin-top:6px;cursor:pointer;';
-    var sepCheck = document.createElement('input');
-    sepCheck.type = 'checkbox';
-    sepCheck.dataset.groupIndex = i;
-    sepCheck.className = 'sep-check';
-    sepCheck.addEventListener('change', function() {
-      input.disabled = sepCheck.checked;
-      input.style.opacity = sepCheck.checked ? '0.4' : '1';
+    // Training checkboxes
+    var checkLabel = document.createElement('div');
+    checkLabel.style.cssText = 'font-size:0.75rem;font-weight:600;color:#4a5568;margin-bottom:6px;';
+    checkLabel.textContent = 'Inkluder i dette filteret (avmerk for eget filtreringsvalg):';
+
+    var checkList = document.createElement('div');
+    checkList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+
+    g.trainings.forEach(function(t) {
+      var lbl = document.createElement('label');
+      lbl.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#2d3748;cursor:pointer;';
+      var chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = true;
+      chk.dataset.groupIndex = i;
+      chk.dataset.training = t;
+      chk.className = 'training-check';
+      lbl.appendChild(chk);
+      lbl.appendChild(document.createTextNode(t));
+      checkList.appendChild(lbl);
     });
-    sepLabel.appendChild(sepCheck);
-    sepLabel.appendChild(document.createTextNode('Behold separate filtreringsvalg'));
 
-    wrap.appendChild(trainingList);
-    wrap.appendChild(row);
-    wrap.appendChild(sepLabel);
+    wrap.appendChild(nameLabel);
+    wrap.appendChild(input);
+    wrap.appendChild(checkLabel);
+    wrap.appendChild(checkList);
     container.appendChild(wrap);
   });
 
@@ -917,13 +927,24 @@ function openGroupModal(parsed, fileName) {
 }
 
 document.getElementById('applyGroupBtn').addEventListener('click', function() {
-  var inputs = document.querySelectorAll('#step2GroupsContainer input[type=text]');
-  var sepChecks = document.querySelectorAll('#step2GroupsContainer .sep-check');
-  var step2Names = [];
-  var step2Separate = [];
-  inputs.forEach(function(inp) { step2Names.push(inp.value); });
-  sepChecks.forEach(function(chk) { step2Separate.push(chk.checked); });
-  window.FILTER_MAP = buildFilterMap(pendingAnalysis, step2Names, step2Separate);
+  var map = {};
+  // Step 1: auto-mapped (>= 2 occurrences)
+  pendingAnalysis.step1.forEach(function(name) { map[name] = name; });
+  // Step 2: read per-group name inputs and per-training checkboxes
+  var nameInputs = document.querySelectorAll('#step2GroupsContainer .group-name-input');
+  var groupNames = {};
+  nameInputs.forEach(function(inp) {
+    var idx = inp.dataset.groupIndex;
+    groupNames[idx] = inp.value.trim() || pendingAnalysis.step2Groups[idx].suggestedName;
+  });
+  var trainingChecks = document.querySelectorAll('#step2GroupsContainer .training-check');
+  trainingChecks.forEach(function(chk) {
+    var t = chk.dataset.training;
+    map[t] = chk.checked ? groupNames[chk.dataset.groupIndex] : t;
+  });
+  // Step 3: "Annet"
+  pendingAnalysis.step3.forEach(function(name) { map[name] = 'Annet'; });
+  window.FILTER_MAP = map;
   document.getElementById('groupModal').classList.remove('open');
   activateDashboard(pendingParsedData, pendingFileName);
 });
