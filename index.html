@@ -299,10 +299,7 @@
   <div class="stats-grid" id="statsGrid"></div>
 
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <div class="card-title" style="margin-bottom:0;">&#x1F3C6; Rangering &#x2014; oppm&#xF8;te p&#xE5; treninger</div>
-      <button onclick="downloadSharePage()" style="background:#2b6cb0;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.8rem;cursor:pointer;">&#x1F517; Last ned delingsside</button>
-    </div>
+    <div class="card-title">&#x1F3C6; Rangering &#x2014; oppm&#xF8;te p&#xE5; treninger</div>
     <div class="filters">
       <div class="filter-group" style="width:100%;">
         <label>Treningstype</label>
@@ -1181,41 +1178,6 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   };
   reader.readAsArrayBuffer(file);
 });
-
-function downloadSharePage() {
-  if (!DASHBOARD_DATA || !window.FILTER_MAP) return;
-  var fileName = localStorage.getItem('oppmote_filename') || 'Oppmotehistorikk';
-
-  fetch(window.location.href)
-    .then(function(r) { return r.text(); })
-    .then(function(html) {
-      var dataJson = JSON.stringify(DASHBOARD_DATA).replace(/<\/script>/gi, '<\\/script>');
-      var mapJson  = JSON.stringify(window.FILTER_MAP).replace(/<\/script>/gi, '<\\/script>');
-      var nameJson = JSON.stringify(fileName);
-
-      var embedCode =
-        '// Delt dashboard \u2014 data er innebygd\n' +
-        'window.FILTER_MAP = ' + mapJson + ';\n' +
-        '(function() {\n' +
-        '  var parsed = ' + dataJson + ';\n' +
-        '  document.getElementById("uploadArea").style.display = "none";\n' +
-        '  activateDashboard(parsed, ' + nameJson + ');\n' +
-        '})();\n';
-
-      var marker = '// Load from localStorage on startup';
-      var markerIdx = html.indexOf(marker);
-      var scriptEnd = html.indexOf('</script>', markerIdx);
-      var newHtml = html.substring(0, markerIdx) + embedCode + html.substring(scriptEnd);
-
-      var blob = new Blob([newHtml], { type: 'text/html;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = fileName + '.html';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-}
 
 function clearSavedData() {
   localStorage.removeItem('oppmote_data');
