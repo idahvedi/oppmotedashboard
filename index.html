@@ -1156,6 +1156,7 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   status.style.color = '';
   status.textContent = 'Laster inn...';
 
+  e.target.value = '';
   var reader = new FileReader();
   reader.onload = function(ev) {
     try {
