@@ -36,6 +36,59 @@
 
   .container { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
 
+  /* Grouping modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 1000;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 14px; padding: 28px;
+    width: 100%; max-width: 560px; max-height: 90vh;
+    overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 1.1rem; font-weight: 700; color: #1a202c; margin-bottom: 6px; }
+  .modal p { font-size: 0.85rem; color: #718096; margin-bottom: 20px; }
+
+  .training-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .training-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+    cursor: pointer; font-size: 0.88rem; color: #2d3748; transition: all 0.15s;
+    user-select: none;
+  }
+  .training-item:hover { border-color: #2b6cb0; background: #ebf4ff; }
+  .training-item.selected { border-color: #2b6cb0; background: #ebf4ff; color: #2b6cb0; font-weight: 600; }
+  .training-item .check { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #cbd5e0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+  .training-item.selected .check { background: #2b6cb0; border-color: #2b6cb0; color: white; }
+
+  .group-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .group-input-row input {
+    flex: 1; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; color: #2d3748;
+  }
+  .group-input-row input:focus { outline: none; border-color: #2b6cb0; }
+  .btn { padding: 9px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; }
+  .btn-primary { background: #2b6cb0; color: white; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-primary:disabled { background: #a0aec0; cursor: default; }
+  .btn-secondary { background: #e2e8f0; color: #4a5568; }
+  .btn-secondary:hover { background: #cbd5e0; }
+
+  .groups-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .group-tag {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: #f0fff4; border: 1px solid #9ae6b4;
+    border-radius: 8px; font-size: 0.85rem;
+  }
+  .group-tag-name { font-weight: 700; color: #276749; }
+  .group-tag-items { color: #4a5568; font-size: 0.78rem; margin-top: 2px; }
+  .group-tag-remove { background: none; border: none; cursor: pointer; color: #a0aec0; font-size: 1.1rem; padding: 0 4px; }
+  .group-tag-remove:hover { color: #e53e3e; }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -208,6 +261,27 @@
 </head>
 <body>
 
+<div class="modal-overlay" id="groupModal">
+  <div class="modal">
+    <h2>Konfigurer filtreringsvalg</h2>
+    <p>Velg arrangementer som skal sl&#xE5;s sammen til ett filtreringsvalg, skriv inn et gruppenavn og trykk &laquo;Legg til gruppe&raquo;. Arrangementer uten gruppe vises enkeltvis.</p>
+
+    <div class="training-list" id="trainingList"></div>
+
+    <div class="group-input-row">
+      <input type="text" id="groupNameInput" placeholder="Gruppenavn, f.eks. Futsal">
+      <button class="btn btn-primary" id="addGroupBtn" disabled>Legg til gruppe</button>
+    </div>
+
+    <div class="groups-list" id="groupsList"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="skipGroupBtn">Hopp over</button>
+      <button class="btn btn-primary" id="applyGroupBtn">Bruk gruppering</button>
+    </div>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-icon">&#x26BD;</div>
   <div class="header-text">
@@ -287,33 +361,38 @@ var COLOR_PALETTE = [
 var DYNAMIC_TYPES = [];     // list of unique training names from data
 var DYNAMIC_COLOR_MAP = {}; // training name -> colour
 
-// Strip trailing round/number suffixes to get a base group name
-// e.g. "Futsal runde 1" -> "Futsal", "Innetrening 2" -> "Innetrening"
 function getBaseType(training) {
-  return training
-    .replace(/\s+(runde|del|uke|sesjon|økt|gruppe|trinn|cup|turnering)\s*\d+\s*$/i, '')
-    .replace(/\s+\d+\s*$/, '')
-    .replace(/\s+[IVX]{1,4}\s*$/i, '')
-    .trim();
+  return training;
+}
+
+function activateDashboard(parsed, fileName) {
+  DASHBOARD_DATA = parsed;
+  activeType = 'all';
+  selectedPlayer = null;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('playerDetail').classList.remove('visible');
+  document.getElementById('headerTitle').textContent = fileName;
+  document.getElementById('headerSub').textContent = parsed.players.length + ' spillere \u2014 ' + parsed.dates.length + ' treninger';
+  renderStats();
+  buildTypeFilters();
+  renderRanking();
 }
 
 function buildDynamicTypes() {
-  // Build map: baseType -> [original training names]
-  var groupMap = {};
+  var userGroupMap = window.USER_GROUP_MAP || {};
+  var seen = {};
+  var types = [];
   DASHBOARD_DATA.trainings.forEach(function(t) {
     if (!t) return;
-    var base = getBaseType(t);
-    if (!groupMap[base]) groupMap[base] = [];
-    if (groupMap[base].indexOf(t) === -1) groupMap[base].push(t);
+    var group = userGroupMap[t] || t; // use user-defined group name, or training name as-is
+    if (!seen[group]) { seen[group] = true; types.push(group); }
   });
-
-  DYNAMIC_TYPES = Object.keys(groupMap);
+  DYNAMIC_TYPES = types;
   DYNAMIC_COLOR_MAP = {};
-  DYNAMIC_TYPES.forEach(function(base, i) {
-    DYNAMIC_COLOR_MAP[base] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+  types.forEach(function(t, i) {
+    DYNAMIC_COLOR_MAP[t] = COLOR_PALETTE[i % COLOR_PALETTE.length];
   });
-  // Store groupMap globally for filtering
-  window.TYPE_GROUP_MAP = groupMap;
 }
 
 function getTypeColor(type) {
@@ -321,7 +400,8 @@ function getTypeColor(type) {
 }
 
 function getTypeGroup(training) {
-  return getBaseType(training);
+  var userGroupMap = window.USER_GROUP_MAP || {};
+  return userGroupMap[training] || training;
 }
 
 function computeStats(player, typeFilter) {
@@ -682,10 +762,109 @@ document.addEventListener('click', function(e) {
   }
 });
 
+window.USER_GROUP_MAP = {};
 // Init
 renderStats();
 buildTypeFilters();
 renderRanking();
+
+// ---- Grouping modal ----
+var pendingParsedData = null;
+var pendingFileName = '';
+var userGroups = []; // [{name, trainings:[]}]
+var selectedTrainings = [];
+
+function openGroupModal(parsed, fileName) {
+  pendingParsedData = parsed;
+  pendingFileName = fileName;
+  userGroups = [];
+  selectedTrainings = [];
+
+  // Get unique training names
+  var seen = {};
+  var uniqueTrainings = [];
+  parsed.trainings.forEach(function(t) {
+    if (t && !seen[t]) { seen[t] = true; uniqueTrainings.push(t); }
+  });
+
+  // Render training list
+  var list = document.getElementById('trainingList');
+  list.innerHTML = '';
+  uniqueTrainings.forEach(function(t) {
+    var item = document.createElement('div');
+    item.className = 'training-item';
+    item.dataset.name = t;
+    item.innerHTML = '<div class="check"></div><span>' + t + '</span>';
+    item.addEventListener('click', function() {
+      var idx = selectedTrainings.indexOf(t);
+      if (idx === -1) { selectedTrainings.push(t); item.classList.add('selected'); item.querySelector('.check').textContent = '\u2713'; }
+      else { selectedTrainings.splice(idx, 1); item.classList.remove('selected'); item.querySelector('.check').textContent = ''; }
+      document.getElementById('addGroupBtn').disabled = selectedTrainings.length < 2;
+    });
+    list.appendChild(item);
+  });
+
+  document.getElementById('groupNameInput').value = '';
+  document.getElementById('groupsList').innerHTML = '';
+  document.getElementById('addGroupBtn').disabled = true;
+  document.getElementById('groupModal').classList.add('open');
+}
+
+function renderGroupsList() {
+  var container = document.getElementById('groupsList');
+  container.innerHTML = '';
+  userGroups.forEach(function(g, i) {
+    var tag = document.createElement('div');
+    tag.className = 'group-tag';
+    tag.innerHTML =
+      '<div><div class="group-tag-name">' + g.name + '</div>' +
+      '<div class="group-tag-items">' + g.trainings.join(', ') + '</div></div>' +
+      '<button class="group-tag-remove" data-i="' + i + '">&times;</button>';
+    tag.querySelector('.group-tag-remove').addEventListener('click', function() {
+      // Re-enable the trainings in the list
+      g.trainings.forEach(function(t) {
+        var el = document.querySelector('.training-item[data-name="' + CSS.escape(t) + '"]');
+        if (el) { el.style.display = ''; }
+      });
+      userGroups.splice(i, 1);
+      renderGroupsList();
+    });
+    container.appendChild(tag);
+  });
+}
+
+document.getElementById('addGroupBtn').addEventListener('click', function() {
+  var name = document.getElementById('groupNameInput').value.trim();
+  if (!name || selectedTrainings.length < 2) return;
+  userGroups.push({ name: name, trainings: selectedTrainings.slice() });
+  // Hide grouped items from list
+  selectedTrainings.forEach(function(t) {
+    var el = document.querySelector('.training-item[data-name="' + CSS.escape(t) + '"]');
+    if (el) { el.style.display = 'none'; }
+  });
+  selectedTrainings = [];
+  document.getElementById('groupNameInput').value = '';
+  document.getElementById('addGroupBtn').disabled = true;
+  renderGroupsList();
+});
+
+function applyGroupsAndRender() {
+  document.getElementById('groupModal').classList.remove('open');
+  // Build group map: training name -> group name
+  var groupMap = {};
+  userGroups.forEach(function(g) {
+    g.trainings.forEach(function(t) { groupMap[t] = g.name; });
+  });
+  window.USER_GROUP_MAP = groupMap;
+  activateDashboard(pendingParsedData, pendingFileName);
+}
+
+document.getElementById('applyGroupBtn').addEventListener('click', applyGroupsAndRender);
+document.getElementById('skipGroupBtn').addEventListener('click', function() {
+  window.USER_GROUP_MAP = {};
+  document.getElementById('groupModal').classList.remove('open');
+  activateDashboard(pendingParsedData, pendingFileName);
+});
 
 // ---- Excel upload ----
 function excelSerialToDate(serial) {
@@ -769,23 +948,11 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
         return;
       }
 
-      DASHBOARD_DATA = parsed;
-      activeType = 'all';
-      selectedPlayer = null;
-      searchQuery = '';
-      document.getElementById('searchInput').value = '';
-      document.getElementById('playerDetail').classList.remove('visible');
-
-      // Update header
-      var name = file.name.replace(/\.xlsx?$/i, '');
-      document.getElementById('headerTitle').textContent = name;
-      document.getElementById('headerSub').textContent = parsed.players.length + ' spillere \u2014 ' + parsed.dates.length + ' treninger';
       status.textContent = '\u2713 Lastet inn ' + parsed.players.length + ' spillere og ' + parsed.dates.length + ' treninger';
-      setTimeout(function(){ status.textContent = ''; }, 6000);
+      setTimeout(function(){ status.textContent = ''; }, 4000);
 
-      renderStats();
-      buildTypeFilters();
-      renderRanking();
+      var fileName = file.name.replace(/\.xlsx?$/i, '');
+      openGroupModal(parsed, fileName);
     } catch(err) {
       status.textContent = '\u26A0\uFE0F Kunne ikke lese filen. Prøv igjen.';
       console.error(err);
