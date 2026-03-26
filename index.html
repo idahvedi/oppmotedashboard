@@ -278,11 +278,12 @@
     <h1 id="headerTitle">Oppm&#xF8;tehistorikk</h1>
     <p id="headerSub">Last opp Excel-fil med oppm&#xF8;tehistorikk fra Spond</p>
   </div>
-  <div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
     <label class="upload-btn">
       &#x1F4C2; Last opp Excel-fil
       <input type="file" id="fileInput" accept=".xlsx,.xls">
     </label>
+    <button id="clearStorageBtn" onclick="clearSavedData()" style="display:none;background:none;border:none;font-size:0.75rem;color:#a0aec0;cursor:pointer;text-decoration:underline;padding:0;">Fjern lagrede data</button>
     <div class="upload-status" id="uploadStatus"></div>
   </div>
 </div>
@@ -452,6 +453,12 @@ function activateDashboard(parsed, fileName) {
   buildActiveFilterDetail();
   buildMonthFilters();
   renderRanking();
+  try {
+    localStorage.setItem('oppmote_data', JSON.stringify(DASHBOARD_DATA));
+    localStorage.setItem('oppmote_filtermap', JSON.stringify(window.FILTER_MAP));
+    localStorage.setItem('oppmote_filename', fileName);
+    localStorage.setItem('oppmote_saved', new Date().toLocaleDateString('no-NO', { day:'numeric', month:'long', year:'numeric' }));
+  } catch(e) {}
 }
 
 function buildDynamicTypes() {
@@ -1160,6 +1167,7 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
       setTimeout(function(){ status.textContent = ''; }, 4000);
 
       var fileName = file.name.replace(/\.xlsx?$/i, '');
+      document.getElementById('clearStorageBtn').style.display = 'block';
       openGroupModal(parsed, fileName);
     } catch(err) {
       status.style.color = '#c53030';
@@ -1169,6 +1177,36 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   };
   reader.readAsArrayBuffer(file);
 });
+
+function clearSavedData() {
+  localStorage.removeItem('oppmote_data');
+  localStorage.removeItem('oppmote_filtermap');
+  localStorage.removeItem('oppmote_filename');
+  localStorage.removeItem('oppmote_saved');
+  document.getElementById('clearStorageBtn').style.display = 'none';
+  document.getElementById('dashboardContent').style.display = 'none';
+  document.getElementById('welcomeScreen').style.display = 'flex';
+  document.getElementById('headerSub').textContent = 'Last opp Excel-fil med oppm\u00F8tehistorikk fra Spond';
+  DASHBOARD_DATA = null;
+  window.FILTER_MAP = {};
+}
+
+// Load from localStorage on startup
+(function() {
+  try {
+    var savedData = localStorage.getItem('oppmote_data');
+    var savedMap  = localStorage.getItem('oppmote_filtermap');
+    var savedName = localStorage.getItem('oppmote_filename');
+    var savedDate = localStorage.getItem('oppmote_saved');
+    if (savedData && savedMap && savedName) {
+      window.FILTER_MAP = JSON.parse(savedMap);
+      var parsed = JSON.parse(savedData);
+      document.getElementById('clearStorageBtn').style.display = 'block';
+      activateDashboard(parsed, savedName);
+      document.getElementById('headerSub').textContent = '\uD83D\uDCC2 ' + savedName + (savedDate ? '  \u2014  lagret ' + savedDate : '');
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
