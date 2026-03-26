@@ -297,6 +297,7 @@
   </div>
 </div>
 
+<div id="debugInfo" style="background:#fef3c7;padding:10px 16px;font-size:0.8rem;font-family:monospace;word-break:break-all;display:block;min-height:1.5em;"></div>
 <div class="container">
   <div class="stats-grid" id="statsGrid"></div>
 
@@ -415,6 +416,16 @@ function computeStats(player, typeFilter) {
   var sessions = player.sessions.filter(function(s) {
     return getTypeGroup(s.training) === typeFilter;
   });
+  // DEBUG: show what's happening for first player
+  if (player === DASHBOARD_DATA.players[0] && sessions.length === 0 && player.sessions.length > 0) {
+    var sample = player.sessions[0].training;
+    var mapped = getTypeGroup(sample);
+    var debugEl = document.getElementById('debugInfo');
+    if (debugEl) debugEl.textContent = 'Filter: "' + typeFilter + '" | Eks. treningsnavn: "' + sample + '" | getTypeGroup: "' + mapped + '" | USER_GROUP_MAP: ' + JSON.stringify(window.USER_GROUP_MAP);
+  } else {
+    var debugEl = document.getElementById('debugInfo');
+    if (debugEl) debugEl.textContent = '';
+  }
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
   return { attended: attended, invited: invited, pct: invited > 0 ? Math.round(attended / invited * 100) : 0 };
