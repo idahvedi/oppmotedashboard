@@ -494,11 +494,34 @@ function renderStats() {
     '<div class="stat-card"><div class="stat-value">' + top.attended + '</div><div class="stat-label">Mest oppmøte (' + top.name.split(' ')[0] + ')</div></div>';
 }
 
+function getFilterDisplayNames(types) {
+  var relevant = types.filter(function(t) { return t !== 'Annet'; });
+  if (relevant.length < 2) return null;
+  var wordArrays = relevant.map(function(n) { return n.split(/\s+/); });
+  var commonWords = 0;
+  var minLen = Math.min.apply(null, wordArrays.map(function(a) { return a.length; }));
+  for (var i = 0; i < minLen - 1; i++) {
+    var word = wordArrays[0][i].toLowerCase();
+    if (wordArrays.every(function(a) { return a[i].toLowerCase() === word; })) commonWords++;
+    else break;
+  }
+  if (commonWords === 0) return null;
+  var map = {};
+  types.forEach(function(t) {
+    if (t === 'Annet') { map[t] = t; return; }
+    var words = t.split(/\s+/);
+    map[t] = words.slice(commonWords).join(' ') || t;
+  });
+  return map;
+}
+
 function buildTypeFilters() {
   if (!DASHBOARD_DATA) return;
   buildDynamicTypes();
   var container = document.getElementById('typeFilters');
   container.innerHTML = '';
+
+  var displayMap = getFilterDisplayNames(DYNAMIC_TYPES) || {};
 
   var allTypes = ['all'].concat(DYNAMIC_TYPES);
   allTypes.forEach(function(type) {
@@ -509,7 +532,7 @@ function buildTypeFilters() {
     chip.style.borderColor = color;
     chip.style.color = isActive ? 'white' : color;
     chip.style.backgroundColor = isActive ? color : 'white';
-    chip.textContent = type === 'all' ? 'Alle' : type;
+    chip.textContent = type === 'all' ? 'Alle' : (displayMap[type] || type);
     chip.addEventListener('click', function() {
       activeType = type;
       buildTypeFilters();
