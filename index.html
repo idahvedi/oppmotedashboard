@@ -413,7 +413,7 @@ function computeStats(player, typeFilter) {
     };
   }
   var sessions = player.sessions.filter(function(s) {
-    return getBaseType(s.training) === typeFilter;
+    return getTypeGroup(s.training) === typeFilter;
   });
   var invited = sessions.length;
   var attended = sessions.filter(function(s){ return s.attended; }).length;
@@ -565,7 +565,7 @@ function showPlayerDetail(player) {
   var sessions = activeType === 'all'
     ? player.sessions.slice()
     : player.sessions.filter(function(s) {
-        return getBaseType(s.training) === activeType;
+        return getTypeGroup(s.training) === activeType;
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
