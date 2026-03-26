@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <title>J2015 Oppm&#xF8;tehistorikk Vinter 25-26</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -717,6 +717,12 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   if (!file) return;
 
   var status = document.getElementById('uploadStatus');
+
+  if (typeof XLSX === 'undefined') {
+    status.textContent = '\u26A0\uFE0F Biblioteket er ikke lastet. Sjekk internettforbindelsen og last siden på nytt.';
+    return;
+  }
+
   status.textContent = 'Laster inn...';
 
   var reader = new FileReader();
