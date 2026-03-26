@@ -312,6 +312,10 @@
         </div>
       </div>
     </div>
+    <div id="activeFilterDetail" style="display:none;margin:0 0 12px;padding:10px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;">
+      <div style="font-weight:600;margin-bottom:6px;">Treninger inkludert i filteret:</div>
+      <div id="activeFilterList" style="display:flex;flex-wrap:wrap;gap:6px 16px;"></div>
+    </div>
     <table class="ranking-table">
       <thead>
         <tr>
@@ -346,6 +350,7 @@
 
 <script>
 var activeType = 'all';
+var excludedTrainings = {};
 var sortCol = 'attended';
 var sortDir = 1;
 var selectedPlayer = null;
@@ -437,6 +442,7 @@ function activateDashboard(parsed, fileName) {
   document.getElementById('dashboardContent').style.display = 'block';
   renderStats();
   buildTypeFilters();
+  buildActiveFilterDetail();
   renderRanking();
 }
 
@@ -475,7 +481,7 @@ function computeStats(player, typeFilter) {
     };
   }
   var sessions = player.sessions.filter(function(s) {
-    return getTypeGroup(s.training) === typeFilter;
+    return getTypeGroup(s.training) === typeFilter && !excludedTrainings[s.training];
   });
 
   var invited = sessions.length;
@@ -540,11 +546,43 @@ function buildTypeFilters() {
     chip.textContent = type === 'all' ? 'Alle' : (displayMap[type] || type);
     chip.addEventListener('click', function() {
       activeType = type;
+      excludedTrainings = {};
       buildTypeFilters();
+      buildActiveFilterDetail();
       renderRanking();
       if (selectedPlayer) showPlayerDetail(selectedPlayer);
     });
     container.appendChild(chip);
+  });
+}
+
+function buildActiveFilterDetail() {
+  var detail = document.getElementById('activeFilterDetail');
+  var list = document.getElementById('activeFilterList');
+  if (activeType === 'all' || !window.FILTER_MAP) { detail.style.display = 'none'; return; }
+
+  var trainings = Object.keys(window.FILTER_MAP).filter(function(t) {
+    return window.FILTER_MAP[t] === activeType;
+  });
+  if (trainings.length <= 1) { detail.style.display = 'none'; return; }
+
+  detail.style.display = 'block';
+  list.innerHTML = '';
+  trainings.forEach(function(t) {
+    var lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;';
+    var chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !excludedTrainings[t];
+    chk.addEventListener('change', function() {
+      if (chk.checked) delete excludedTrainings[t];
+      else excludedTrainings[t] = true;
+      renderRanking();
+      if (selectedPlayer) showPlayerDetail(selectedPlayer);
+    });
+    lbl.appendChild(chk);
+    lbl.appendChild(document.createTextNode(t));
+    list.appendChild(lbl);
   });
 }
 
@@ -652,9 +690,9 @@ function showPlayerDetail(player) {
     '<span>Oppmøte: <b>' + stats.pct + '%</b></span>';
 
   var sessions = activeType === 'all'
-    ? player.sessions.slice()
+    ? player.sessions.filter(function(s) { return !excludedTrainings[s.training]; })
     : player.sessions.filter(function(s) {
-        return getTypeGroup(s.training) === activeType;
+        return getTypeGroup(s.training) === activeType && !excludedTrainings[s.training];
       });
 
   sessions.sort(function(a, b){ return a.date.localeCompare(b.date); });
