@@ -733,22 +733,23 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
       var parsed = parseExcelData(workbook);
 
       if (parsed.players.length === 0) {
-        status.textContent = '\u26A0\uFE0F Fant ingen spillere i filen.';
+        status.textContent = '\u26A0\uFE0F Fant ingen spillere. Sjekk at filen har riktig format (samme som J2015-filen).';
         return;
       }
 
       DASHBOARD_DATA = parsed;
+      activeType = 'all';
       selectedPlayer = null;
       searchQuery = '';
       document.getElementById('searchInput').value = '';
       document.getElementById('playerDetail').classList.remove('visible');
 
       // Update header
-      var name = file.name.replace(/\.xlsx?$/, '');
+      var name = file.name.replace(/\.xlsx?$/i, '');
       document.getElementById('headerTitle').textContent = name;
       document.getElementById('headerSub').textContent = parsed.players.length + ' spillere \u2014 ' + parsed.dates.length + ' treninger';
-      status.textContent = '\u2713 Innlastet!';
-      setTimeout(function(){ status.textContent = ''; }, 3000);
+      status.textContent = '\u2713 Lastet inn ' + parsed.players.length + ' spillere og ' + parsed.dates.length + ' treninger';
+      setTimeout(function(){ status.textContent = ''; }, 6000);
 
       renderStats();
       buildTypeFilters();
