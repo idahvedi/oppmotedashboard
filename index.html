@@ -1067,26 +1067,38 @@ function excelSerialToDate(serial) {
 }
 
 function parseExcelData(workbook) {
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0)
+    throw new Error('Filen har ingen ark.');
+
   var ws = workbook.Sheets[workbook.SheetNames[0]];
   var rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
+  if (rows.length < 3)
+    throw new Error('Filen ser ikke ut som en Spond-fil \u2014 forventet minst 3 rader (overskrift, treningsnavn, spillere).');
+
   var headerRow = rows[0];
   var trainingRow = rows[1];
+
+  if (!headerRow || headerRow.length <= 7)
+    throw new Error('Filen ser ikke ut som en Spond-fil \u2014 fant ingen treningskolonner fra kolonne 8.');
 
   var dates = [];
   var trainings = [];
   for (var i = 7; i < headerRow.length; i++) {
     var d = headerRow[i];
-    dates.push(typeof d === 'number' ? excelSerialToDate(d) : '');
-    var t = trainingRow[i] ? trainingRow[i].replace(/\*/g, '').trim() : '';
+    dates.push(typeof d === 'number' ? excelSerialToDate(d) : (typeof d === 'string' ? d : ''));
+    var t = trainingRow[i] ? String(trainingRow[i]).replace(/\*/g, '').trim() : '';
     trainings.push(t);
   }
+
+  var validDates = dates.filter(function(d){ return d && d.match(/^\d{4}-\d{2}-\d{2}$/); });
+  if (validDates.length === 0)
+    throw new Error('Fant ingen gyldige datoer i filen. Sjekk at dette er en Spond oppm\u00F8tehistorikk-fil.');
 
   var players = [];
   for (var r = 2; r < rows.length; r++) {
     var row = rows[r];
     if (!row[0] || typeof row[0] !== 'string' || row[0].length > 60) continue;
-    // Skip Hospitering sessions
     var sessions = [];
     for (var j = 0; j < dates.length; j++) {
       if (trainings[j].indexOf('Hospitering') !== -1) continue;
@@ -1107,6 +1119,9 @@ function parseExcelData(workbook) {
     });
   }
 
+  if (players.length === 0)
+    throw new Error('Fant ingen spillere i filen. Sjekk at dette er en Spond oppm\u00F8tehistorikk-fil.');
+
   var filteredDates = dates.filter(function(_, i){ return trainings[i].indexOf('Hospitering') === -1; });
   var filteredTrainings = trainings.filter(function(t){ return t.indexOf('Hospitering') === -1; });
 
@@ -1124,6 +1139,7 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
     return;
   }
 
+  status.style.color = '';
   status.textContent = 'Laster inn...';
 
   var reader = new FileReader();
@@ -1133,18 +1149,14 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
       var workbook = XLSX.read(data, { type: 'array' });
       var parsed = parseExcelData(workbook);
 
-      if (parsed.players.length === 0) {
-        status.textContent = '\u26A0\uFE0F Fant ingen spillere. Sjekk at filen har riktig format (samme som J2015-filen).';
-        return;
-      }
-
       status.textContent = '\u2713 Lastet inn ' + parsed.players.length + ' spillere og ' + parsed.dates.length + ' treninger';
       setTimeout(function(){ status.textContent = ''; }, 4000);
 
       var fileName = file.name.replace(/\.xlsx?$/i, '');
       openGroupModal(parsed, fileName);
     } catch(err) {
-      status.textContent = '\u26A0\uFE0F Kunne ikke lese filen. Prøv igjen.';
+      status.style.color = '#c53030';
+      status.textContent = '\u26A0\uFE0F ' + (err.message || 'Kunne ikke lese filen. Prøv igjen.');
       console.error(err);
     }
   };
